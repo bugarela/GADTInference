@@ -1,0 +1,2 @@
+data Aaa a = Cons a
+\x.\f.f x
