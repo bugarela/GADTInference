@@ -6,6 +6,6 @@ A very simple implementation of [this approach](https://www.microsoft.com/en-us/
 
 Run `generate` to get generated constraints.
 
-Run `solve` to get the type infered.
+Run `solve` to get the type inferred.
 
 This implementation is far from done.
