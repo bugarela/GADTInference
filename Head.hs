@@ -17,11 +17,6 @@ data SimpleType  = TVar Id
                  | TGen Int
                  deriving Eq
 
-data Pat = PVar Id
-         | PLit Literal
-         | PCon Id [Pat]
-         deriving (Eq, Show)
-
 data Expr = Var Id
           | App Expr Expr
           | Lam Id Expr
@@ -31,6 +26,11 @@ data Expr = Var Id
           | Case Expr [(Pat,Expr)]
           | Let (Id,Expr) Expr
           deriving (Eq, Show)
+
+data Pat = PVar Id
+         | PLit Literal
+         | K Id [Expr] --[Expr] -- a's e b's
+         deriving (Eq, Show)
 
 data SConstraint = TEq SimpleType SimpleType
               -- | SConj SConstraint SConstraint
