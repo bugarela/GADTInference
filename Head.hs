@@ -29,7 +29,7 @@ data Expr = Var Id
 
 data Pat = PVar Id
          | PLit Literal
-         | K Id [Expr] --[Expr] -- a's e b's
+         | PCon Id [Id]
          deriving (Eq, Show)
 
 data SConstraint = TEq SimpleType SimpleType

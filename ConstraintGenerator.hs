@@ -46,8 +46,20 @@ conGen g (Case e ls) = do (te,fe) <- conGen g e
                           let f = fe ++ (foldr1 (++) fs)
                           return (a,f)
 
-conGenAlt g a te (p,e) = do (t,ft) <- conGenPat g p
-                            (v,fv) <- conGen g e
-                            return (ft ++ fv ++ [te ~~ t] ++ [a ~~ v])
+conGenAlt g a te (p,e) = do (TArr ti vi,fi) <- conGenPat g p e
+                            return (fi ++ [te ~~ ti] ++ [a ~~ vi])
 
-conGenPat g p = undefined
+conGenPat g (PVar i) e = do b <- freshVar
+                            (te,fe) <- conGen (g /+/ [i:>:(Forall b)]) e
+                            return (b --> te,fe)
+conGenPat g (PLit tipo) e = do (te,fe) <- conGen g e
+                               return (TLit tipo --> te, fe)
+conGenPat g (PCon i []) e = do t <- tiContext g i
+                               (te,fe) <- conGen g e
+                               return (t --> te, fe)
+conGenPat g (PCon i xs) e = do t <- tiContext g i
+                               let ps = conParameters t
+                               let c = ret t
+                               let phi = zipWith (:>:) xs ps
+                               (te,fe) <- conGen (g /+/ phi) e
+                               return (c --> te,fe)

@@ -1,2 +1,2 @@
 data Aaa a = Cons a
-\x.\f.f x
+\x.case x of {Cons a -> a}

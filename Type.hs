@@ -75,6 +75,10 @@ instance Subs Type where
   apply s (Forall qt) = Forall (apply s qt)
   tv (Forall qt)      = tv qt
 
+instance Subs SConstraint where
+  apply s (TEq a b) = TEq (apply s a) (apply s b)
+  tv (TEq a b)      = tv [a,b]
+
 ------------------------------------
 varBind :: Id -> SimpleType -> Maybe Subst
 varBind u t | t == TVar u   = Just []
@@ -132,8 +136,15 @@ simple [] = []
 simple ((Simp a):cs) = a:simple cs
 simple (_:cs) = simple cs
 
+unifyConstraints :: [SConstraint] -> Subst
 unifyConstraints [] = []
-unifyConstraints ((TEq t u):cs) = (unify t u) @@ (unifyConstraints cs)
+unifyConstraints ((TEq t u):cs) = unifyConstraints cs @@ unify t u
+
+conParameters (TArr a as) = (Forall a):conParameters as
+conParameters _ = []
+
+ret (TArr a as) = ret as
+ret (a) = a
 
 context = [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVar "a"))),
            ("Nothing", TApp (TCon "Maybe") (TVar "a")),

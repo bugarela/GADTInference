@@ -148,7 +148,7 @@ plit = do digits <- many1 digit
 
 pcon :: Parsec String () (Pat)
 pcon = do c <- conName
-          ps <- many pat
+          ps <- many varName
           return (PCon c ps)
 
 varReservada :: Parsec String () (Expr)
