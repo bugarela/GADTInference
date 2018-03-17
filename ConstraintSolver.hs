@@ -8,7 +8,7 @@ solve' g e = runTI (solver (quantifiedContext g) e)
 generate' g e = snd (runTI (conGen (quantifiedContext g) e))
 
 solver g e = do (t,cs) <- conGen g e
-                let u = unifyConstraints (simple cs)
+                let u = unifyConstraints (simple cs) []
                 return (apply u t)
 
 solve = do a <- parseFile

@@ -4,6 +4,7 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import Data.Char
 import Head
+import Type
 
 import Control.Monad.Identity (Identity)
 
@@ -79,13 +80,35 @@ caseex = do string "case "
             return (Case e ps)
 
 letex :: Parsec String () (Expr)
-letex = do string "let "
-           v <- many1 (noneOf reservados)
-           char '='
-           e <- singleExpr
-           string "in "
-           e' <- expr
-           return (Let (v,e) e')
+letex = do try $ do string "let "
+                    spaces
+                    v <- many1 (noneOf reservados)
+                    spaces
+                    char '='
+                    spaces
+                    e <- singleExpr
+                    spaces
+                    string "in "
+                    spaces
+                    e' <- expr
+                    return (Let (v,e) e')
+        <|>
+        do try $ do string "let "
+                    spaces
+                    v <- many1 (noneOf reservados)
+                    spaces
+                    string "::"
+                    spaces
+                    a <- typeScheme
+                    spaces
+                    char '='
+                    spaces
+                    e <- singleExpr
+                    spaces
+                    string "in "
+                    spaces
+                    e' <- expr
+                    return (LetA (v,(quantify (tv a) a),e) e')
 
 apps :: Parsec String () (Expr)
 apps = do as <- many1 singleExpr
@@ -204,5 +227,37 @@ tParam = do c <- conName
          <|>
          do t <- tvar
             return t
+
+tlit :: Parsec String () (SimpleType)
+tlit = do try $ do {string "Int"}
+          spaces
+          return (TLit Int)
+       <|>
+       do try $ do {string "Bool"}
+          spaces
+          return (TLit Bool)
+
+singleType :: Parsec String () SimpleType
+singleType = do {v <- tvar; return v}
+             <|>
+             do {c <- tParam; return c}
+             <|>
+             do {l <- tlit; return l}
+
+typeScheme :: Parsec String () SimpleType
+typeScheme = do try $ do t <- singleType
+                         spaces
+                         t' <- typeScheme
+                         return (TApp t t')
+            <|>
+            do try $ do t <- singleType
+                        spaces
+                        string "->"
+                        spaces
+                        t' <- typeScheme
+                        return (TArr t t')
+            <|> do t <- singleType
+                   return t
+
 
 buildADT i ps (c,vs) = (c,(foldl1 TArr (vs ++ [foldl1 TApp ([TCon i]++ps)])))

@@ -25,6 +25,7 @@ data Expr = Var Id
           | If Expr Expr Expr
           | Case Expr [(Pat,Expr)]
           | Let (Id,Expr) Expr
+          | LetA (Id,Type,Expr) Expr
           deriving (Eq, Show)
 
 data Pat = PVar Id
@@ -33,12 +34,13 @@ data Pat = PVar Id
          deriving (Eq, Show)
 
 data SConstraint = TEq SimpleType SimpleType
-              -- | SConj SConstraint SConstraint
+                 | Unt [Id] SConstraint
+                 | SConj [SConstraint]
                  | E
                  deriving Eq
 
 data Constraint = Simp SConstraint
-                | Impl [Id] Type SConstraint Constraint
+                | Impl [Id] SConstraint Constraint
                 | Conj [Constraint]
                 deriving Eq
 
@@ -64,5 +66,5 @@ instance Show SConstraint where
 
 instance Show Constraint where
     show (Simp c) = show c
-    show (Impl _ t c f) = show t ++ "." ++ show c ++ " imp " ++ show f
+    show (Impl _ t f) = show t ++ " imp " ++ show f
     --show (Conj f g) = show f ++ " ^ " ++ show g

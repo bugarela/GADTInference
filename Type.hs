@@ -2,6 +2,7 @@ module Type where
 import Data.List(nub, intersect, union, nubBy)
 import Head
 
+
 --------------------------
 instance Functor TI where
    fmap f (TI m) = TI (\e -> let (a, e') = m e in (f a, e'))
@@ -134,11 +135,17 @@ inst _ t = t
 
 simple [] = []
 simple ((Simp a):cs) = a:simple cs
+simple ((Conj s):cs) = (SConj (simple s)):simple cs
+simple ((Impl i E (Conj s)):cs) = (Unt i (SConj (simple s))):simple cs
+simple ((Impl i E c):cs) = if length sc > 0 then Unt i (head sc):simple cs else simple cs where sc = (simple [c])
 simple (_:cs) = simple cs
 
-unifyConstraints :: [SConstraint] -> Subst
-unifyConstraints [] = []
-unifyConstraints ((TEq t u):cs) = unifyConstraints cs @@ unify t u
+unifyConstraints :: [SConstraint] -> [Id] -> Subst
+unifyConstraints [] _ = []
+unifyConstraints ((TEq t u):cs) un = unifyConstraints cs un @@ unify t u
+unifyConstraints (Unt us (TEq t u):cs) un = unifyConstraints cs (un ++ us) @@ unify t u -- TO DO: DONT TOUCH THE UNTOUCHABLES
+unifyConstraints (Unt us c:cs) un = unifyConstraints [c] (un ++ us) @@ unifyConstraints cs (un ++ us)
+unifyConstraints ((SConj s):cs) un = unifyConstraints cs un @@ unifyConstraints s un
 
 conParameters (TArr a as) = (Forall a):conParameters as
 conParameters _ = []

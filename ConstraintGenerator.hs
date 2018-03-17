@@ -32,12 +32,18 @@ conGen g (Lam i e) = do a <- freshVar
 conGen g (Let (i,e1) e2) = do a <- freshVar
                               (t,f1) <- conGen (g /+/ [i:>:(Forall a)]) e1
                               let fs = f1 ++ [a ~~ t]
-                              let s = unifyConstraints (simple fs)
+                              let s = unifyConstraints (simple fs) []
                               let t' = apply s t
                               let q = quantify (tv t) t
                               (v,f2) <- conGen (g /+/ [i:>:q]) e2
-                              let f = f2 ++ [(Impl (tv g) q E (Conj fs))]
+                              let f = f2 ++ [(Impl (tv g) E (Conj fs))]
                               return (v,f)
+
+--LETA
+conGen g (LetA (i,(Forall t),e1) e2) = do (t',f1) <- conGen (g /+/ [i:>:(Forall t)]) e1
+                                          (v,f2) <- conGen (g /+/ [i:>:(Forall t)]) e2
+                                          let f = f2 ++ [(Impl (tv g) E (Conj f1))] ++ [t ~~ t']
+                                          return (v,f)
 
 --CASE
 conGen g (Case e ls) = do (te,fe) <- conGen g e
