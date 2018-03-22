@@ -13,7 +13,11 @@ conGen g (Var x) = do t <- tiContext g x
                       return (t, [])
 
 --CON
-conGen g (Con c) = undefined
+conGen g (Con c) = do t <- tiContext g c
+                      return (t,[])
+
+--LIT
+conGen g (Lit a) = return (TLit a, [])
 
 --APP
 conGen g (App e1 e2) = do (t1,f1) <- conGen g e1

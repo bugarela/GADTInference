@@ -238,9 +238,7 @@ tlit = do try $ do {string "Int"}
           return (TLit Bool)
 
 singleType :: Parsec String () SimpleType
-singleType = do {v <- tvar; return v}
-             <|>
-             do {c <- tParam; return c}
+singleType = do {c <- tParam; return c}
              <|>
              do {l <- tlit; return l}
 

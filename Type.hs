@@ -1,5 +1,6 @@
 module Type where
 import Data.List(nub, intersect, union, nubBy)
+import Data.Maybe(fromJust)
 import Head
 
 
@@ -62,6 +63,7 @@ instance Subs SimpleType where
   tv (TApp c v) = tv c `union` tv v
   tv (TCon _) = []
   tv (TLit _) = []
+  tv (TGen _) = []
 
 
 instance Subs a => Subs [a] where
@@ -110,6 +112,15 @@ unify t t' =  case mgu (t,t') of
     Nothing -> error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t')
     Just s  -> s
 
+unify' us t t' = if check us u1 then fromJust u1 else if check us u2 then fromJust u2 else error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t' ++ "\nuntouchables: " ++ show us) where
+    u1 = mgu (t,t')
+    u2 = mgu (t',t)
+
+check _ (Nothing) = False
+check us (Just []) = True
+check us (Just ((a,_):ss)) = if a `elem` us then False else check us (Just ss)
+
+
 appParametros i [] = i
 appParametros (TArr _ i) (_:ts) = appParametros i ts
 
@@ -137,13 +148,13 @@ simple [] = []
 simple ((Simp a):cs) = a:simple cs
 simple ((Conj s):cs) = (SConj (simple s)):simple cs
 simple ((Impl i E (Conj s)):cs) = (Unt i (SConj (simple s))):simple cs
-simple ((Impl i E c):cs) = if length sc > 0 then Unt i (head sc):simple cs else simple cs where sc = (simple [c])
+simple ((Impl i E c):cs) = Unt i (SConj (simple [c])):simple cs
 simple (_:cs) = simple cs
 
 unifyConstraints :: [SConstraint] -> [Id] -> Subst
 unifyConstraints [] _ = []
-unifyConstraints ((TEq t u):cs) un = unifyConstraints cs un @@ unify t u
-unifyConstraints (Unt us (TEq t u):cs) un = unifyConstraints cs (un ++ us) @@ unify t u -- TO DO: DONT TOUCH THE UNTOUCHABLES
+unifyConstraints ((TEq t u):cs) un = unifyConstraints cs un @@ unify' un t u
+unifyConstraints (Unt us (TEq t u):cs) un = unifyConstraints cs (un ++ us) @@ unify' (un ++ us) t u
 unifyConstraints (Unt us c:cs) un = unifyConstraints [c] (un ++ us) @@ unifyConstraints cs (un ++ us)
 unifyConstraints ((SConj s):cs) un = unifyConstraints cs un @@ unifyConstraints s un
 
