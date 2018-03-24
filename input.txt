@@ -1,2 +1,2 @@
 data Aaa a = Cons a
-\x.let g :: Aaa Int = x in g
+\x.case x of {Cons s -> let g = s in (g + g)}

@@ -34,13 +34,13 @@ data Pat = PVar Id
          deriving (Eq, Show)
 
 data SConstraint = TEq SimpleType SimpleType
-                 | Unt [Id] SConstraint
+                 | Unt [SimpleType] [Id] SConstraint
                  | SConj [SConstraint]
                  | E
                  deriving Eq
 
 data Constraint = Simp SConstraint
-                | Impl [Id] SConstraint Constraint
+                | Impl [SimpleType] [Id] SConstraint Constraint
                 | Conj [Constraint]
                 deriving Eq
 
@@ -61,10 +61,11 @@ instance Show Literal where
 
 instance Show SConstraint where
     show (TEq t t') = show t ++ " ~ " ++ show t'
-    --show (SConj c d) = show c ++ " ^ " ++ show d
+    show (Unt as bs c) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ ")"
     show E = "e"
+    show (SConj (c:cs)) = show c ++ " ^ " ++ show cs
 
 instance Show Constraint where
     show (Simp c) = show c
-    show (Impl _ t f) = show t ++ " imp " ++ show f
-    --show (Conj f g) = show f ++ " ^ " ++ show g
+    show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ " imp " ++ show f ++ ")"
+    show (Conj (c:cs)) = show c ++ " ^ " ++ show cs
