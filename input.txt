@@ -1,2 +1,2 @@
-data Aaa a = Cons a
+data Aaa a where {Cons :: a -> Aaa a; C :: Int -> Aaa Int}
 \x.case x of {Cons s -> let g = s in (g + g)}

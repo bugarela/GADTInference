@@ -3,9 +3,9 @@ import Type
 import Parser
 import ConstraintGenerator
 
-solve' g e = runTI (solver (quantifiedContext g) e)
+solve' (d,g) e = runTI (solver (d, quantifiedContext g) e)
 
-generate' g e = snd (runTI (conGen (quantifiedContext g) e))
+generate' (d,g) e = snd (runTI (conGen (d, quantifiedContext g) e))
 
 solver g e = do (t,cs) <- conGen g e
                 let u = sSolve (simple cs)
@@ -22,7 +22,7 @@ generate = do a <- parseFile
 inferFile' (ds,e) f = case e of
                       Left err -> print err
                       Right e -> case (extract ds) of
-                                    Right s -> print (f (foldr1 (++) s) e)
+                                    Right s -> print (f ((foldr1 (++) s),[]) e)
                                     Left errs -> print errs
 
 

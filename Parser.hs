@@ -14,7 +14,7 @@ parseExpr e = parse expr "Erro:" e
 
 parseFile = do f <- readFile "input.txt"
                let ls = lines f
-               let ds = map (parse adt "Erro:") (init ls)
+               let ds = map (parse dd "Erro:") (init ls)
                let e = parse expr "Erro:" (last ls)
                return (ds,e)
 
@@ -191,6 +191,7 @@ varName :: Parsec String () ([Char])
 varName = do a <- noneOf (['A'..'Z'] ++ reservados)
              as <- many (noneOf reservados)
              spaces
+             let s = [a] ++ as
              return ([a] ++ as)
 
 foldApp :: [Expr] -> Expr
@@ -198,7 +199,12 @@ foldApp [x] = x
 foldApp [f,g] = if g `elem` operators then (App g f) else (App f g)
 foldApp (f:(g:as)) = if g `elem` operators then App (App g f) (foldApp as) else App (App f g) (foldApp as)
 
-adt :: Parsec String () [(Id,SimpleType)]
+dd :: Parsec String () [GADT]
+dd = do try $ do {a <- adt; return a}
+     <|>
+     do try $ do {a <- gadt; return a}
+
+adt :: Parsec String () [GADT]
 adt = do string "data"
          spaces
          i <- conName
@@ -207,6 +213,19 @@ adt = do string "data"
          char '='
          rs <- tcon `sepBy` (char '|')
          return (map (buildADT i ps) rs)
+
+gadt :: Parsec String () [GADT]
+gadt = do string "data"
+          spaces
+          i <- conName
+          spaces
+          ps <- manyTill tvar (try (string "where"))
+          spaces
+          char '{'
+          spaces
+          rs <- gtcon `sepBy` (char ';')
+          char '}'
+          return (rs)
 
 tvar :: Parsec String () (SimpleType)
 tvar = do var <- varName
@@ -218,6 +237,7 @@ tcon = do spaces
           c <- conName
           spaces
           vs <- many tParam
+          spaces
           return (c,vs)
 
 tParam :: Parsec String () SimpleType
@@ -236,6 +256,22 @@ tlit = do try $ do {string "Int"}
        do try $ do {string "Bool"}
           spaces
           return (TLit Bool)
+
+gtcon :: Parsec String () (GADT)
+gtcon = do spaces
+           c <- conName
+           spaces
+           cs <- do char '.'
+                    spaces
+                    cs <- constraint
+                    spaces
+                    return cs
+                 <|> do return E
+           string "::"
+           spaces
+           s <- typeScheme
+           spaces
+           return (c,quantifyAll s,cs)
 
 singleType :: Parsec String () SimpleType
 singleType = do {c <- tParam; return c}
@@ -257,5 +293,21 @@ typeScheme = do try $ do t <- singleType
             <|> do t <- singleType
                    return t
 
+buildADT i ps (c,vs) = (c,quantifyAll (foldl1 TArr (vs ++ [foldl1 TApp ([TCon i]++ps)])),E)
 
-buildADT i ps (c,vs) = (c,(foldl1 TArr (vs ++ [foldl1 TApp ([TCon i]++ps)])))
+constraint :: Parsec String () SConstraint
+constraint = do cs <- singleConstraint `sepBy` (char '^')
+                return (SConj cs)
+
+singleConstraint :: Parsec String () SConstraint
+singleConstraint = do char 'e'
+                      spaces
+                      return (E)
+                   <|>
+                   do t <- singleType
+                      spaces
+                      char '~'
+                      spaces
+                      t' <- singleType
+                      spaces
+                      return (TEq t t')

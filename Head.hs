@@ -6,6 +6,7 @@ data TI a = TI (Index -> (a, Index))
 type Subst  = [(Id, SimpleType)]
 data Type = Forall SimpleType deriving (Eq, Show)
 data Assump = Id :>: Type deriving (Eq, Show)
+type GADT = (Id, Type, SConstraint)
 
 data Literal = Int | Bool | TInt Int | TBool Bool deriving (Eq)
 

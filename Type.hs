@@ -132,8 +132,9 @@ quantify vs qt = Forall (apply s qt) where
     vs' = [v | v <- tv qt, v `elem` vs]
     s = zip vs' (map TGen [0..])
 
+quantifyAll t = quantify (tv t) t
 
-quantifyAssump (i,t) = i:>:quantify (tv t) t
+quantifyAssump (i,t) = i:>:quantifyAll t
 
 countTypes (TArr l r) = max (countTypes l) (countTypes r)
 countTypes (TApp l r) = max (countTypes l) (countTypes r)
@@ -147,10 +148,23 @@ freshInstance (Forall t) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
 freshSubst (Forall t) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
                            return (fs,t)
 
+freshInstC t c = do (fs,t') <- freshSubst t
+                    return (inst fs t', instC fs c)
+
 inst fs (TArr l r) = TArr (inst fs l) (inst fs r)
 inst fs (TApp l r) = TApp (inst fs l) (inst fs r)
 inst fs (TGen n) = fs !! n
 inst _ t = t
+
+instC :: [SimpleType] -> SConstraint -> SConstraint
+instC _ (E) = E
+instC fs (TEq t t') = (TEq (inst fs t) (inst fs t'))
+instC fs (Unt ts is cs) = (Unt (map (inst fs) ts) is (instC fs cs))
+instC fs (SConj cs) = (SConj (map (instC fs) cs))
+
+instF fs (Simp c) = (Simp (instC fs c))
+instF fs (Impl ts is cs f) = (Impl (map (inst fs) ts) is (instC fs cs) (instF fs f))
+instF fs (Conj cs) = (Conj (map (instF fs) cs))
 
 simple (Simp c) = c
 simple (Conj (c:cs)) = SConj ([simple c] ++ [simple (Conj cs)])
