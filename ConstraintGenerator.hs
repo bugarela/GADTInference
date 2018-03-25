@@ -2,6 +2,7 @@ module ConstraintGenerator where
 
 import Head
 import Type
+import ConstraintSolver
 import Data.List
 
 tiContext (_,g) i = if l /= [] then (freshInstance t) else error ("Variable " ++ i ++ " undefined\n")
@@ -74,12 +75,18 @@ conGenPat (d,g) (PVar i) e = do b <- freshVar
                                 return (b --> te,fe)
 conGenPat g (PLit tipo) e = do (te,fe) <- conGen g e
                                return (TLit tipo --> te, fe)
-conGenPat g (PCon i []) e = do t <- tiContext g i
+conGenPat g (PCon i []) e = do (t,c') <- gadtContext g i
                                (te,fe) <- conGen g e
                                return (t --> te, fe)
-conGenPat (d,g) (PCon i xs) e = do (t,c') <- gadtContext (d,g) i -- TO DO
+conGenPat (d,g) (PCon i xs) e = do (t,c) <- gadtContext (d,g) i
                                    let ps = conParameters t
-                                   let c = ret t
-                                   let phi = zipWith (:>:) xs ps
-                                   (te,fe) <- conGen (d,(g /+/ phi)) e
-                                   return (c --> te,fe)
+                                   let r = ret t
+                                   let k = cons r
+                                   let as = findAs r
+                                   phi <- (freshs as)
+                                   let g' = zipWith (:>:) xs (map toType (apply phi ps))
+                                   (te,fe) <- conGen (d,(g /+/ g')) e
+                                   let bs = findBs ps as
+                                   let as' = map snd phi
+                                   let f = Impl (as' ++ map makeTvar (tv g ++ tv te)) bs c fe
+                                   return (foldl1 TApp ([TCon k]++as') --> te,f)

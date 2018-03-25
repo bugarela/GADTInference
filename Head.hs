@@ -4,7 +4,7 @@ type Index = Int
 type Id = String
 data TI a = TI (Index -> (a, Index))
 type Subst  = [(Id, SimpleType)]
-data Type = Forall SimpleType deriving (Eq, Show)
+data Type = Forall SimpleType | U SimpleType deriving (Eq, Show)
 data Assump = Id :>: Type deriving (Eq, Show)
 type GADT = (Id, Type, SConstraint)
 
@@ -64,9 +64,11 @@ instance Show SConstraint where
     show (TEq t t') = show t ++ " ~ " ++ show t'
     show (Unt as bs c) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ ")"
     show E = "e"
-    show (SConj (c:cs)) = show c ++ " ^ " ++ show cs
+    show (SConj [c]) = show c
+    show (SConj (c:cs)) = show c ++ "\n" ++ show (SConj cs)
 
 instance Show Constraint where
     show (Simp c) = show c
     show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ " imp " ++ show f ++ ")"
-    show (Conj (c:cs)) = show c ++ " ^ " ++ show cs
+    show (Conj [c]) = show c
+    show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)

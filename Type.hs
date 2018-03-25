@@ -80,11 +80,18 @@ instance Subs Type where
 
 instance Subs SConstraint where
   apply s (TEq a b) = TEq (apply s a) (apply s b)
-  apply s (SConj (c:cs)) = SConj (apply s c:apply s cs)
+  apply s (SConj cs) = SConj (map (apply s) cs)
   apply s (Unt as bs c) = (Unt as bs (apply s c))
   apply s E = E
 
-  --tv (TEq a b)      = tv [a,b]
+  tv = undefined
+
+instance Subs Constraint where
+  apply s (Simp c) = Simp (apply s c)
+  apply s (Conj cs) = Conj (map (apply s) cs)
+  apply s (Impl as bs c f) = (Impl as bs (apply s c) (apply s f))
+
+  tv = undefined
 
 ------------------------------------
 varBind :: Id -> SimpleType -> Maybe Subst
@@ -116,10 +123,6 @@ unify t t' =  case mgu (t,t') of
     Nothing -> error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t')
     Just s  -> s
 
-{-unify' us t t' = if check us u1 then fromJust u1 else if check us u2 then fromJust u2 else error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t' ++ "\nuntouchables: " ++ show us) where
-    u1 = mgu (t,t')
-    u2 = mgu (t',t)-}
-
 check _ (Nothing) = False
 check us (Just []) = True
 check us (Just ((a,_):ss)) = if a `elem` us then False else check us (Just ss)
@@ -142,11 +145,17 @@ countTypes (TGen n) = n
 countTypes _ = 0
 
 freshInstance :: Type -> TI SimpleType
+freshInstance (U t) = return t
 freshInstance (Forall t) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
                               return (inst fs t)
 
+
 freshSubst (Forall t) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
                            return (fs,t)
+
+freshs (ts) = do fs <- mapM (\_ -> freshVar) ts
+                 return (mkPair ts fs)
+
 
 freshInstC t c = do (fs,t') <- freshSubst t
                     return (inst fs t', instC fs c)
@@ -171,32 +180,29 @@ simple (Conj (c:cs)) = SConj ([simple c] ++ [simple (Conj cs)])
 simple (Impl as bs E f) = Unt as bs (simple f)
 simple _ = E
 
-{-unifyConstraints :: [SConstraint] -> [Id] -> Subst
-unifyConstraints [] _ = []
-unifyConstraints ((TEq t u):cs) un = unifyConstraints cs un @@ unify' un t u
-unifyConstraints (Unt us (TEq t u):cs) un = unifyConstraints cs (un ++ us) @@ unify' (un ++ us) t u
-unifyConstraints (Unt us c:cs) un = unifyConstraints [c] (un ++ us) @@ unifyConstraints cs (un ++ us)
-unifyConstraints ((SConj s):cs) un = unifyConstraints cs un @@ unifyConstraints s un -}
-
-sSolve :: SConstraint -> Subst
-sSolve (TEq t u) = unify t u
-sSolve (Unt as bs c) = let s = sSolve c in
-                          if (intersect (tv (apply s as)) bs /= []) || (intersect bs (dom s) /= [])
-                            then error ("S-SImpl error with bs=" ++ show bs)
-                            else s
-sSolve (SConj []) = []
-sSolve (SConj (c:cs)) = let s = sSolve c in (sSolve (SConj (map (apply s) cs))) @@ s
-sSolve E = []
-
 dom = map fst
 
-conParameters (TArr a as) = (Forall a):conParameters as
+toType a = U a
+
+conParameters (TArr a as) = a:conParameters as
 conParameters _ = []
 
 ret (TArr a as) = ret as
 ret (a) = a
 
+cons (TCon i) = i
+cons (TApp c _) = cons c
+
+findAs (TCon i) = []
+findAs (TApp c (TVar a)) = findAs c ++ [a]
+findAs _ = []
+
+findBs ps as = (tv ps) \\ as
+
 makeTvar i = TVar i
+
+mkPair [] _ = []
+mkPair (a:as) (b:bs) = (a,b):mkPair as bs
 
 context = [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVar "a"))),
            ("Nothing", TApp (TCon "Maybe") (TVar "a")),

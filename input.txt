@@ -1,2 +1,2 @@
-data Aaa a where {Cons :: a -> Aaa a; C :: Int -> Aaa Int}
-\x.case x of {Cons s -> let g = s in (g + g)}
+data T a where {Ta :: Int -> T Bool; Tb :: a -> T a}
+\x.case x of {Ta n -> (n > 1)}
