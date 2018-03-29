@@ -30,6 +30,9 @@ expr = do l <- lam
        <|>
        do apps <- many1 term
           return $ foldl1 App apps
+       <|>
+       do {t <- tuple; return t}
+
 
 term :: Parsec String () (Expr)
 term = do {i <- ifex; return i}
@@ -54,11 +57,17 @@ pat = do {p <- plit; return p}
       do {p <- pcon; return p}
       <|>
       do {p <- pvar; return p}
+      <|>
+      do {t <- tuplePat; return t}
+
 
 lam :: Parsec String () (Expr)
 lam = do char '\\'
+         spaces
          var <- varName
-         char '.'
+         spaces
+         string "->"
+         spaces
          e <- expr
          return (Lam var e)
 
@@ -115,11 +124,13 @@ apps = do as <- many1 singleExpr
           return (foldApp as)
 
 singleExpr :: Parsec String () (Expr)
-singleExpr = do char '('
-                e <- expr
-                char ')'
-                spaces
-                return e
+singleExpr = do try $ do char '('
+                         e <- expr
+                         char ')'
+                         spaces
+                         return e
+             <|>
+             do {t <- tuple; return t}
              <|>
              do l <- lit
                 return l
@@ -130,7 +141,6 @@ singleExpr = do char '('
              do var <- varName
                 spaces
                 return (Var var)
-
 
 lit :: Parsec String () (Expr)
 lit = do digits <- many1 digit
@@ -183,7 +193,7 @@ varReservada = do {con <- conName; return (Con con)}
 
 conName :: Parsec String () ([Char])
 conName = do a <- oneOf ['A'..'Z']
-             as <- many letter
+             as <- many (noneOf reservados)
              spaces
              return ([a] ++ as)
 
@@ -261,14 +271,14 @@ gtcon :: Parsec String () (GADT)
 gtcon = do spaces
            c <- conName
            spaces
-           cs <- do char '.'
+           string "::"
+           spaces
+           cs <- do cs <- constraint
                     spaces
-                    cs <- constraint
+                    string "=>"
                     spaces
                     return cs
                  <|> do return E
-           string "::"
-           spaces
            s <- typeScheme
            spaces
            return (c,quantifyAll s,cs)
@@ -304,10 +314,34 @@ singleConstraint = do char 'e'
                       spaces
                       return (E)
                    <|>
-                   do t <- singleType
+                   do char '('
+                      spaces
+                      t <- singleType
                       spaces
                       char '~'
                       spaces
                       t' <- singleType
                       spaces
+                      char ')'
+                      spaces
                       return (TEq t t')
+
+tuple :: Parsec String () Expr
+tuple = do char '('
+           spaces
+           es <- expr `sepBy` (char ',')
+           spaces
+           char ')'
+           spaces
+           return (foldl1 App ([Con (idTup (length es))] ++ es))
+
+tuplePat :: Parsec String () Pat
+tuplePat = do char '('
+              spaces
+              es <- varName `sepBy` (char ',')
+              spaces
+              char ')'
+              spaces
+              return (PCon (idTup (length es)) es)
+
+idTup n = "(" ++ take (n-1) [',',','..] ++ ")"
