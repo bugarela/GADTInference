@@ -3,6 +3,7 @@ import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Language
 import Data.Char
+import Data.List.Split (splitOn)
 import Head
 import Type
 
@@ -12,11 +13,16 @@ import Control.Monad.Identity (Identity)
 
 parseExpr e = parse expr "Erro:" e
 
+parseFile :: (IO [([Either ParseError [Assump]], Either ParseError Expr)])
 parseFile = do f <- readFile "input.txt"
                let ls = lines f
-               let ds = map (parse dd "Erro:") (init ls)
-               let e = parse expr "Erro:" (last ls)
-               return (ds,e)
+               let fs = splitOn ["---"] ls
+               r <- mapM parseFile' fs
+               return (r)
+
+parseFile' f = do let ds = map (parse dd "Erro:") (init f)
+                  let e = parse expr "Erro:" (last f)
+                  return (ds,e)
 
 reservados = ".|=->{},;()\n "
 operators = map varof ["+","-","*","/","==",">","<",">=","<="]

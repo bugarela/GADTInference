@@ -93,7 +93,7 @@ conGenPat g (PCon i xs) e = do (t,c) <- tiContext g i
                                let g' = apply u gp
                                (te,fe) <- conGen g' e
                                let bs = findBs ta (map idOf (as ++ [b]))
-                               let f = Impl (as ++ map makeTvar (tv g')) bs c fe -- without tv (te)
+                               let f = Impl (as ++ map makeTvar (tv g' ++ tv te)) bs c fe
                                let f' = apply u (Conj ([f] ++ fs))
                                return (apply u b, f', g',apply u as)
 conGenPat g p _ = conGenPat' g p

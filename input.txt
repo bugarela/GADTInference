@@ -1,2 +1,11 @@
+data T a where {T1 :: a -> T a}
+\x -> case x of { T1 n -> True }
+---
+data T a where {T1 :: (Bool ~ a) => Int -> T a}
+\x -> case x of { T1 n -> n > 0 }
+---
+data T a where {T1 :: (a ~ Bool) => Int -> T a; T2 :: T a}
+\x -> case x of {T1 n -> (n > 0);T2 -> True}
+---
 data T a where {T1 :: (a ~ Bool) => Int -> T a; T2 :: a -> T a}
 \x -> case x of {T1 n -> (n > 0);T2 b -> True}

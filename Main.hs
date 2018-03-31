@@ -12,15 +12,15 @@ solver g e = do (t,cs) <- conGen g e
                 let u = solveAll cs
                 return (apply u t)
 
-solve = do a <- parseFile
-           inferFile' a solve'
+solve = do as <- parseFile
+           mapM (inferFile' solve') as
            return()
 
-generate = do a <- parseFile
-              inferFile' a generate'
+generate = do as <- parseFile
+              mapM (inferFile' generate') as
               return()
 
-inferFile' (ds,e) f = case e of
+inferFile' f (ds,e) = case e of
                       Left err -> print err
                       Right e -> case (extract ds) of
                                     Right s -> print (f (foldr1 (++) s) e)
