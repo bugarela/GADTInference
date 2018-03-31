@@ -84,14 +84,18 @@ instance Subs SConstraint where
   apply s (Unt as bs c) = (Unt as bs (apply s c))
   apply s E = E
 
-  tv = undefined
+  tv _ = []
 
 instance Subs Constraint where
   apply s (Simp c) = Simp (apply s c)
   apply s (Conj cs) = Conj (map (apply s) cs)
-  apply s (Impl as bs c f) = (Impl as bs (apply s c) (apply s f))
+  apply s (Impl as bs c f) = (Impl (apply s as) bs (apply s c) (apply s f))
 
-  tv = undefined
+  tv _ = []
+
+instance Subs ConstrainedType where
+  apply s (Constrained a t) = Constrained a (apply s t)
+  tv (Constrained _ t) = tv t
 
 ------------------------------------
 varBind :: Id -> SimpleType -> Maybe Subst
@@ -131,11 +135,18 @@ check us (Just ((a,_):ss)) = if a `elem` us then False else check us (Just ss)
 appParametros i [] = i
 appParametros (TArr _ i) (_:ts) = appParametros i ts
 
-quantify vs qt = Forall (apply s qt) where
+convert a = Constrained (Forall a) E
+
+quantify vs qt = Constrained (Forall (apply s qt)) (E) where
+    vs' = [v | v <- tv qt, v `elem` vs]
+    s = zip vs' (map TGen [0..])
+
+quantifyC vs qt cs = Constrained (Forall (apply s qt)) (apply s cs) where
     vs' = [v | v <- tv qt, v `elem` vs]
     s = zip vs' (map TGen [0..])
 
 quantifyAll t = quantify (tv t) t
+quantifyAllC t cs = quantifyC (tv t) t cs
 
 quantifyAssump (i,t) = i:>:quantifyAll t
 
@@ -152,6 +163,9 @@ freshInstance (Forall t) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
 
 freshSubst (Forall t) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
                            return (fs,t)
+
+freshSubstC (Constrained (Forall t) _) = do fs <- mapM (\_ -> freshVar) [0..(countTypes t)]
+                                            return (fs,t)
 
 freshs (ts) = do fs <- mapM (\_ -> freshVar) ts
                  return (mkPair ts fs)
@@ -180,7 +194,11 @@ simple (Conj (c:cs)) = SConj ([simple c] ++ [simple (Conj cs)])
 simple (Impl as bs E f) = Unt as bs (simple f)
 simple _ = E
 
-dom = map fst
+
+dom' (a, TVar b) = if a == b then "" else a
+dom' (a,_) = a
+
+dom a = (map dom' a)
 
 toType a = U a
 
@@ -201,10 +219,12 @@ findBs ps as = (tv ps) \\ as
 
 makeTvar i = TVar i
 
+idOf (TVar a) = a
+
 mkPair [] _ = []
 mkPair (a:as) (b:bs) = (a,b):mkPair as bs
 
-context = [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVar "a"))),
+context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVar "a"))),
            ("Nothing", TApp (TCon "Maybe") (TVar "a")),
            ("Left", TArr (TVar "a") (TApp (TApp (TCon "Either") (TVar "a")) (TVar "b"))),
            ("Right", TArr (TVar "a") (TApp (TApp (TCon "Either") (TVar "a")) (TVar "b"))),
@@ -216,8 +236,7 @@ context = [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVar "a"))),
            (">=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
            ("<=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
            (">", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           ("<", TArr (TLit Int) (TArr (TLit Int) (TLit Bool)))]
-
-quantifiedContext ds = map quantifyAssump (context ++ ds)
+           ("<", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
+           ("(,)", TArr (TVar "a") (TArr (TVar "b") (TApp (TApp (TCon "(,)") (TVar "a")) (TVar "b"))))]
 
 typeFromAssump (i:>:t) = t

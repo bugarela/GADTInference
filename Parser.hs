@@ -117,7 +117,7 @@ letex = do try $ do string "let "
                     string "in "
                     spaces
                     e' <- expr
-                    return (LetA (v,(quantify (tv a) a),e) e')
+                    return (LetA (v,(quantifyAll a),e) e')
 
 apps :: Parsec String () (Expr)
 apps = do as <- many1 singleExpr
@@ -181,7 +181,7 @@ plit = do digits <- many1 digit
 
 pcon :: Parsec String () (Pat)
 pcon = do c <- conName
-          ps <- many varName
+          ps <- many pat
           return (PCon c ps)
 
 varReservada :: Parsec String () (Expr)
@@ -209,12 +209,12 @@ foldApp [x] = x
 foldApp [f,g] = if g `elem` operators then (App g f) else (App f g)
 foldApp (f:(g:as)) = if g `elem` operators then App (App g f) (foldApp as) else App (App f g) (foldApp as)
 
-dd :: Parsec String () [GADT]
+dd :: Parsec String () [Assump]
 dd = do try $ do {a <- adt; return a}
      <|>
      do try $ do {a <- gadt; return a}
 
-adt :: Parsec String () [GADT]
+adt :: Parsec String () [Assump]
 adt = do string "data"
          spaces
          i <- conName
@@ -224,7 +224,7 @@ adt = do string "data"
          rs <- tcon `sepBy` (char '|')
          return (map (buildADT i ps) rs)
 
-gadt :: Parsec String () [GADT]
+gadt :: Parsec String () [Assump]
 gadt = do string "data"
           spaces
           i <- conName
@@ -267,7 +267,7 @@ tlit = do try $ do {string "Int"}
           spaces
           return (TLit Bool)
 
-gtcon :: Parsec String () (GADT)
+gtcon :: Parsec String () (Assump)
 gtcon = do spaces
            c <- conName
            spaces
@@ -281,7 +281,7 @@ gtcon = do spaces
                  <|> do return E
            s <- typeScheme
            spaces
-           return (c,quantifyAll s,cs)
+           return (c :>: quantifyAllC s cs)
 
 singleType :: Parsec String () SimpleType
 singleType = do {c <- tParam; return c}
@@ -303,7 +303,7 @@ typeScheme = do try $ do t <- singleType
             <|> do t <- singleType
                    return t
 
-buildADT i ps (c,vs) = (c,quantifyAll (foldl1 TArr (vs ++ [foldl1 TApp ([TCon i]++ps)])),E)
+buildADT i ps (c,vs) = c :>: quantifyAll (foldl1 TArr (vs ++ [foldl1 TApp ([TCon i]++ps)]))
 
 constraint :: Parsec String () SConstraint
 constraint = do cs <- singleConstraint `sepBy` (char '^')
@@ -338,7 +338,7 @@ tuple = do char '('
 tuplePat :: Parsec String () Pat
 tuplePat = do char '('
               spaces
-              es <- varName `sepBy` (char ',')
+              es <- pat `sepBy` (char ',')
               spaces
               char ')'
               spaces

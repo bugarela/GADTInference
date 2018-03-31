@@ -5,8 +5,8 @@ type Id = String
 data TI a = TI (Index -> (a, Index))
 type Subst  = [(Id, SimpleType)]
 data Type = Forall SimpleType | U SimpleType deriving (Eq, Show)
-data Assump = Id :>: Type deriving (Eq, Show)
-type GADT = (Id, Type, SConstraint)
+data Assump = Id :>: ConstrainedType deriving (Eq, Show)
+data ConstrainedType = Constrained Type SConstraint deriving (Eq, Show)
 
 data Literal = Int | Bool | TInt Int | TBool Bool deriving (Eq)
 
@@ -26,12 +26,12 @@ data Expr = Var Id
           | If Expr Expr Expr
           | Case Expr [(Pat,Expr)]
           | Let (Id,Expr) Expr
-          | LetA (Id,Type,Expr) Expr
+          | LetA (Id,ConstrainedType,Expr) Expr
           deriving (Eq, Show)
 
 data Pat = PVar Id
          | PLit Literal
-         | PCon Id [Id]
+         | PCon Id [Pat]
          deriving (Eq, Show)
 
 data SConstraint = TEq SimpleType SimpleType
@@ -61,7 +61,7 @@ instance Show Literal where
     show Bool = "Bool"
 
 instance Show SConstraint where
-    show (TEq t t') = show t ++ " ~ " ++ show t'
+    show (TEq t t') = "(" ++ show t ++ " ~ " ++ show t' ++ ")"
     show (Unt as bs c) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ ")"
     show E = "e"
     show (SConj [c]) = show c
