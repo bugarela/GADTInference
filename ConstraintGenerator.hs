@@ -5,12 +5,6 @@ import Type
 import ConstraintSolver
 import Data.List
 
-tiContext g i = if l /= [] then (freshInstC t c) else error ("Variable " ++ i ++ " undefined\n")
-    where
-        l = dropWhile (\(i' :>: _) -> i /= i' ) g
-        (_ :>: Constrained t c) = head l
-
-
 conGen :: ([Assump]) -> Expr -> TI (SimpleType,Constraint)
 
 --VAR

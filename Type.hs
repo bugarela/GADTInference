@@ -127,6 +127,19 @@ unify t t' =  case mgu (t,t') of
     Nothing -> error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t')
     Just s  -> s
 
+
+tiContext :: [Assump] -> Id -> TI (SimpleType, SConstraint)
+-- n-tuple on context
+tiContext g ('(':is) = do t <- nTupleType is
+                          r <- freshInstC t E
+                          return (r)
+
+tiContext g i = if l /= [] then (freshInst t c) else error ("Variable " ++ i ++ " undefined\n")
+    where
+        l = dropWhile (\(i' :>: _) -> i /= i' ) g
+        (_ :>: Constrained t c) = head l
+
+
 check _ (Nothing) = False
 check us (Just []) = True
 check us (Just ((a,_):ss)) = if a `elem` us then False else check us (Just ss)
@@ -170,8 +183,10 @@ freshSubstC (Constrained (Forall t) _) = do fs <- mapM (\_ -> freshVar) [0..(cou
 freshs (ts) = do fs <- mapM (\_ -> freshVar) ts
                  return (mkPair ts fs)
 
+freshInst t c = do (fs,t') <- freshSubst t
+                   return (inst fs t', instC fs c)
 
-freshInstC t c = do (fs,t') <- freshSubst t
+freshInstC t c = do (fs,t') <- freshSubstC t
                     return (inst fs t', instC fs c)
 
 inst fs (TArr l r) = TArr (inst fs l) (inst fs r)
@@ -224,6 +239,12 @@ idOf (TVar a) = a
 mkPair [] _ = []
 mkPair (a:as) (b:bs) = (a,b):mkPair as bs
 
+nTupleType :: Id -> TI ConstrainedType
+nTupleType i = do let n = length i
+                  ts <- mapM (\_ -> freshVar) (take n [0..])
+                  let r = (foldl1 TApp ([TCon ("(" ++ i)] ++ ts))
+                  return (quantifyAll (foldr1 TArr (ts ++ [r])))
+
 context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVar "a"))),
            ("Nothing", TApp (TCon "Maybe") (TVar "a")),
            ("Left", TArr (TVar "a") (TApp (TApp (TCon "Either") (TVar "a")) (TVar "b"))),
@@ -236,7 +257,6 @@ context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVa
            (">=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
            ("<=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
            (">", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           ("<", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           ("(,)", TArr (TVar "a") (TArr (TVar "b") (TApp (TApp (TCon "(,)") (TVar "a")) (TVar "b"))))]
+           ("<", TArr (TLit Int) (TArr (TLit Int) (TLit Bool)))]
 
 typeFromAssump (i:>:t) = t

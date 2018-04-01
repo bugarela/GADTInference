@@ -50,7 +50,7 @@ instance Show SimpleType where
     show (TArr (TArr a b) t') = "("++show (TArr a b)++")"++"->"++show t'
     show (TArr t t') = show t++"->"++show t'
     show (TCon i) = i
-    show (TApp c v) = show c ++ " " ++ show v
+    show (TApp c v) = showApp (listApp c v)
     show (TLit tipo) = show tipo
     show (TGen n) = "tg" ++ show n
 
@@ -72,3 +72,18 @@ instance Show Constraint where
     show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ " imp " ++ show f ++ ")"
     show (Conj [c]) = show c
     show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)
+
+showApp [] = ""
+showApp [x] = x
+showApp (x:xs) = if (tup x) then "(" ++ showTuple (take n xs) ++ showApp (drop n xs) else x ++ " "++ showApp xs where
+                      n = (length x - 1)
+
+listApp (TApp a b) (TApp a' b') = (listApp a b) ++ ["(" ++ show (TApp a' b') ++ ")"]
+listApp (TApp a b) v = (listApp a b) ++ [show v]
+listApp v (TApp a b) = [show v] ++ ["(" ++ show (TApp a b) ++ ")"]
+listApp c v = [show c] ++ [show v]
+
+tup a = a !! 0 == '(' && a !! 1 == ','
+
+showTuple [x] = x ++ ")"
+showTuple (x:xs) = x ++ "," ++ showTuple xs
