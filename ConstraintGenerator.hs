@@ -18,6 +18,15 @@ conGen g (Con i) = do (t,c) <- tiContext g i
 --LIT
 conGen g (Lit a) = return (TLit a, Simp E)
 
+-- IF
+conGen g (If x t e) = do (tx,fx) <- conGen g x
+                         (tt,ft) <- conGen g t
+                         (te,fe) <- conGen g e
+                         let s = unify tx (TLit Bool)
+                         let u = unify (apply s tt) (apply s te)
+                         let s' = s @@ u
+                         return (apply s' tt, apply s' (Conj ([fx] ++ [ft] ++ [fe])))
+
 --APP
 conGen g (App e1 e2) = do (t1,f1) <- conGen g e1
                           (t2,f2) <- conGen g e2
