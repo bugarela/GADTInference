@@ -17,7 +17,7 @@ sSolve' (Impl as bs E f) = let s = sSolve' f in
 sSolve' (Impl as bs c f) = let p = sSolve c
                                t = solveAll (apply p f) in
                                if (intersect as (map makeTvar (dom t)) /= [])
-                                 then error ("S-PImpl error with as= " ++ show as ++ " dom teta= " ++ show (dom t))
+                                 then error ("S-PImpl on :" ++ show (Impl as bs c f) ++ "with as= " ++ show as ++ " teta= " ++ show t)
                                  else t
 
 sSolve :: SConstraint -> Subst

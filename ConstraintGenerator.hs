@@ -20,10 +20,10 @@ conGen g (Lit a) = return (TLit a, Simp E)
 
 -- IF
 conGen g (If x t e) = do (tx,fx) <- conGen g x
-                         (tt,ft) <- conGen g t
-                         (te,fe) <- conGen g e
                          let s = unify tx (TLit Bool)
-                         let u = unify (apply s tt) (apply s te)
+                         (tt,ft) <- conGen (apply s g) t
+                         (te,fe) <- conGen (apply s g) e
+                         let u = unify tt te
                          let s' = s @@ u
                          return (apply s' tt, apply s' (Conj ([fx] ++ [ft] ++ [fe])))
 
@@ -70,33 +70,34 @@ conGenAlt g a te (p,e) = do (ti, fi, g', _) <- conGenPat g p e
                             return (Conj ([fi] ++ [fe] ++ [te ~~ ti] ++ [a ~~ te']))
 
 
-conGenPats g [] = return ([],[],[],[])
-conGenPats g (p:ps) = do (t1,f1,g1,b1) <- conGenPat' g p
-                         (t2,f2,g2,b2) <- conGenPats g1 ps
-                         return ([t1] ++ t2, [f1] ++ f2, g /+/ g1 /+/ g2, b1 ++ b2)
+conGenPats _ [] = return ([],[],[],[])
+conGenPats g (p:ps) = do (t1,c1,g1,b1) <- conGenPat' g p
+                         (t2,c2,g2,b2) <- conGenPats g1 ps
+                         return ([t1] ++ t2, [c1] ++ c2, (g /+/ g1) /+/ g2, b1 ++ b2)
 
 conGenPat' g (PVar i) = do b <- freshVar
-                           return (b, Simp E, (g /+/ [i:>:(convert b)]), [b])
-conGenPat' g (PLit tipo) = do return (TLit tipo, Simp E, g, [])
+                           return (b, E, (g /+/ [i:>:(convert b)]), [b])
+conGenPat' g (PLit tipo) = do return (TLit tipo, E, g, [])
 conGenPat' g (PCon i []) = do (t,c') <- tiContext g i
-                              return (t, Simp E, g, [])
+                              return (t, E, g, [])
 conGenPat' g (PCon i xs) = do (t,c) <- tiContext g i
-                              (ts,fs,gp,as) <- conGenPats g xs
+                              (ts,cs,gp,as) <- conGenPats g xs
                               b <- freshVar
                               let ta = foldr1 TArr (ts ++ [b])
                               let u = unify t ta
                               let g' = apply u gp
-                              return (apply u b, apply u (Conj fs), g',apply u as)
+                              return (apply u b, apply u (SConj cs), g',apply u as)
 
 conGenPat g (PCon i xs) e = do (t,c) <- tiContext g i
-                               (ts,fs,gp,as) <- conGenPats g xs
+                               (ts,cs,gp,as) <- conGenPats g xs
                                b <- freshVar
                                let ta = foldr1 TArr (ts ++ [b])
                                let u = unify t ta
                                let g' = apply u gp
                                (te,fe) <- conGen g' e
                                let bs = findBs ta (map idOf (as ++ [b]))
-                               let f = Impl (as ++ map makeTvar (tv g' ++ tv te)) bs c fe
-                               let f' = apply u (Conj ([f] ++ fs))
+                               let f = Impl (as ++ map makeTvar (tv g' ++ tv te)) bs (SConj ([c] ++ cs)) fe
+                               let f' = apply u f
                                return (apply u b, f', g',apply u as)
-conGenPat g p _ = conGenPat' g p
+conGenPat g p _ = do (t,c,g',b) <- conGenPat' g p
+                     return (t,Simp c, g', b)

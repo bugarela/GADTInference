@@ -253,6 +253,7 @@ context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVa
            ("-", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
            ("*", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
            ("/", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
+           ("===", TArr (TVar "a") (TArr (TVar "a") (TLit Bool))),
            ("==", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
            (">=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
            ("<=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),

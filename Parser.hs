@@ -13,19 +13,18 @@ import Control.Monad.Identity (Identity)
 
 parseExpr e = parse expr "Erro:" e
 
-parseFile :: (IO [([Either ParseError [Assump]], Either ParseError Expr)])
-parseFile = do f <- readFile "input.txt"
-               let ls = lines f
-               let fs = splitOn ["---"] ls
-               r <- mapM parseFile' fs
-               return (r)
+parseFile a = do f <- readFile a
+                 let ls = lines f
+                 let fs = splitOn ["---"] ls
+                 r <- mapM parseFile' fs
+                 return (r)
 
 parseFile' f = do let ds = map (parse dd "Erro:") (init f)
                   let e = parse expr "Erro:" (last f)
                   return (ds,e)
 
 reservados = ".|=->{},;()\n "
-operators = map varof ["+","-","*","/","==",">","<",">=","<="]
+operators = map varof ["+","-","*","/","==",">","<",">=","<=","==="]
 opsymbols = "><=-+*/"
 
 varof c = Var c

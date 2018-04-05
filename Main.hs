@@ -12,13 +12,13 @@ solver g e = do (t,cs) <- conGen g e
                 let u = solveAll cs
                 return (apply u t)
 
-solve = do as <- parseFile
-           mapM (inferFile' solve') as
-           return()
+solve a = do as <- parseFile a
+             mapM (inferFile' solve') as
+             return()
 
-generate = do as <- parseFile
-              mapM (inferFile' generate') as
-              return()
+generate a = do as <- parseFile a
+                mapM (inferFile' generate') as
+                return()
 
 inferFile' f (ds,e) = case e of
                       Left err -> print err

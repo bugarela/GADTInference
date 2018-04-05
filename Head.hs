@@ -63,7 +63,7 @@ instance Show Literal where
 instance Show SConstraint where
     show (TEq t t') = "(" ++ show t ++ " ~ " ++ show t' ++ ")"
     show (Unt as bs c) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ ")"
-    show E = "e"
+    show E = ""
     show (SConj [c]) = show c
     show (SConj (c:cs)) = show c ++ "\n" ++ show (SConj cs)
 
