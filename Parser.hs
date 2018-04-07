@@ -11,23 +11,34 @@ import Control.Monad.Identity (Identity)
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-parseExpr e = parse expr "Erro:" e
+parseExpr e = parse expr "Error:" e
 
 parseFile a = do f <- readFile a
                  let ls = lines f
-                 let fs = splitOn ["---"] ls
+                 let fs = splitOn [""] (filter (notComment) ls)
                  r <- mapM parseFile' fs
                  return (r)
 
-parseFile' f = do let ds = map (parse dd "Erro:") (init f)
-                  let e = parse expr "Erro:" (last f)
+parseFile' f = do let ds = map (parse dd "Error:") (init f)
+                  let e = parse expr' "Error:" (last f)
                   return (ds,e)
 
 reservados = ".|=->{},;()\n "
 operators = map varof ["+","-","*","/","==",">","<",">=","<=","==="]
 opsymbols = "><=-+*/"
 
+notComment ('-':('-':_)) = False
+notComment _ = True
+
 varof c = Var c
+
+expr' :: Parsec String () (Expr)
+expr' = do v <- pvar
+           spaces
+           char '='
+           spaces
+           e <- expr
+           return e
 
 expr :: Parsec String () (Expr)
 expr = do l <- lam
@@ -107,22 +118,22 @@ letex = do try $ do string "let "
                     e' <- expr
                     return (Let (v,e) e')
         <|>
-        do try $ do string "let "
-                    spaces
-                    v <- many1 (noneOf reservados)
-                    spaces
-                    string "::"
-                    spaces
-                    a <- typeScheme
-                    spaces
-                    char '='
-                    spaces
-                    e <- singleExpr
-                    spaces
-                    string "in "
-                    spaces
-                    e' <- expr
-                    return (LetA (v,(quantifyAll a),e) e')
+        do string "let "
+           spaces
+           v <- many1 (noneOf reservados)
+           spaces
+           string "::"
+           spaces
+           a <- typeScheme
+           spaces
+           char '='
+           spaces
+           e <- singleExpr
+           spaces
+           string "in "
+           spaces
+           e' <- expr
+           return (LetA (v,(quantifyAll a),e) e')
 
 apps :: Parsec String () (Expr)
 apps = do as <- many1 singleExpr
@@ -160,6 +171,14 @@ lit = do digits <- many1 digit
       do try $ do {string "False"}
          spaces
          return (Lit (TBool False))
+      <|>
+      do try $ do {string "Bool"}
+         spaces
+         return (Lit Bool)
+      <|>
+      do try $ do {string "Int"}
+         spaces
+         return (Lit Int)
 
 con :: Parsec String () (Expr)
 con = do c <- conName
@@ -183,6 +202,14 @@ plit = do digits <- many1 digit
        do try $ do {string "False"}
           spaces
           return (PLit (TBool False))
+       <|>
+       do try $ do {string "Bool"}
+          spaces
+          return (PLit Bool)
+       <|>
+       do try $ do {string "Int"}
+          spaces
+          return (PLit Int)
 
 pcon :: Parsec String () (Pat)
 pcon = do c <- conName
@@ -275,7 +302,6 @@ tlit = do try $ do {string "Int"}
 gtcon :: Parsec String () (Assump)
 gtcon = do spaces
            c <- conName
-           spaces
            string "::"
            spaces
            cs <- do cs <- constraint
@@ -289,9 +315,11 @@ gtcon = do spaces
            return (c :>: quantifyAllC s cs)
 
 singleType :: Parsec String () SimpleType
-singleType = do {c <- tParam; return c}
+singleType = do try $ do {t <- tupleType; return t}
              <|>
              do {l <- tlit; return l}
+             <|>
+             do {c <- tParam; return c}
 
 typeScheme :: Parsec String () SimpleType
 typeScheme = do try $ do t <- singleType
@@ -334,7 +362,7 @@ singleConstraint = do char 'e'
 tuple :: Parsec String () Expr
 tuple = do char '('
            spaces
-           es <- expr `sepBy` (char ',')
+           es <- (do {spaces; e <- expr; return e}) `sepBy` (char ',')
            spaces
            char ')'
            spaces
@@ -343,10 +371,19 @@ tuple = do char '('
 tuplePat :: Parsec String () Pat
 tuplePat = do char '('
               spaces
-              es <- pat `sepBy` (char ',')
+              es <- (do {spaces; p <- pat; return p}) `sepBy` (char ',')
               spaces
               char ')'
               spaces
               return (PCon (idTup (length es)) es)
+
+tupleType :: Parsec String () SimpleType
+tupleType = do char '('
+               spaces
+               es <- (do {spaces; t <- typeScheme; return t}) `sepBy` (char ',')
+               spaces
+               char ')'
+               spaces
+               return (foldl1 TApp ([TCon (idTup (length es))] ++ es))
 
 idTup n = "(" ++ take (n-1) [',',','..] ++ ")"

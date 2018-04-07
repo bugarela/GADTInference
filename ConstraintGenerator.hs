@@ -20,12 +20,13 @@ conGen g (Lit a) = return (TLit a, Simp E)
 
 -- IF
 conGen g (If x t e) = do (tx,fx) <- conGen g x
-                         let s = unify tx (TLit Bool)
-                         (tt,ft) <- conGen (apply s g) t
-                         (te,fe) <- conGen (apply s g) e
-                         let u = unify tt te
-                         let s' = s @@ u
-                         return (apply s' tt, apply s' (Conj ([fx] ++ [ft] ++ [fe])))
+                         --let s = unify tx (TLit Bool)
+                         (tt,ft) <- conGen g t
+                         (te,fe) <- conGen g e
+                         -- a <- freshVar
+                         --let u = unify tt te
+                         --let s' = u @@ s
+                         return (te, (Conj ([tx ~~ (TLit Bool)] ++ [tt ~~ te] ++ [fx] ++ [ft] ++ [fe])))
 
 --APP
 conGen g (App e1 e2) = do (t1,f1) <- conGen g e1
@@ -65,9 +66,10 @@ conGen g (Case e ls) = do (te,fe) <- conGen g e
                           let f = Conj ([fe] ++ fs)
                           return (a,f)
 
-conGenAlt g a te (p,e) = do (ti, fi, g', _) <- conGenPat g p e
-                            (te',fe) <- conGen g' e
-                            return (Conj ([fi] ++ [fe] ++ [te ~~ ti] ++ [a ~~ te']))
+conGenAlt g a te (p,e) = do (t, fi) <- conGenPat g p e
+                            let ti = leftArr t
+                            let vi = rightArr t
+                            return (Conj ([fi] ++ [te ~~ ti] ++ [a ~~ vi]))
 
 
 conGenPats _ [] = return ([],[],[],[])
@@ -85,8 +87,9 @@ conGenPat' g (PCon i xs) = do (t,c) <- tiContext g i
                               b <- freshVar
                               let ta = foldr1 TArr (ts ++ [b])
                               let u = unify t ta
+                              let as' = intersect as (map makeTvar (tv (rightArr t)))
                               let g' = apply u gp
-                              return (apply u b, apply u (SConj cs), g',apply u as)
+                              return (apply u b, apply u (SConj ([c] ++ cs)), g',as)
 
 conGenPat g (PCon i xs) e = do (t,c) <- tiContext g i
                                (ts,cs,gp,as) <- conGenPats g xs
@@ -96,8 +99,9 @@ conGenPat g (PCon i xs) e = do (t,c) <- tiContext g i
                                let g' = apply u gp
                                (te,fe) <- conGen g' e
                                let bs = findBs ta (map idOf (as ++ [b]))
-                               let f = Impl (as ++ map makeTvar (tv g' ++ tv te)) bs (SConj ([c] ++ cs)) fe
+                               let as' = intersect as (map makeTvar (tv (rightArr t)))
+                               let f = Impl (as' ++ map makeTvar (tv g ++ tv te)) bs (SConj ([c] ++ cs)) fe
                                let f' = apply u f
-                               return (apply u b, f', g',apply u as)
-conGenPat g p _ = do (t,c,g',b) <- conGenPat' g p
-                     return (t,Simp c, g', b)
+                               return ((apply u b) --> te, f')
+conGenPat g p _ = do (t,c,_,b) <- conGenPat' g p
+                     return (t,Simp c)

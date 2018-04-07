@@ -110,10 +110,10 @@ mgu (TArr l r,  TArr l' r') = do s1 <- mgu (l,l')
 mgu (TApp c v, TApp c' v')  = do s1 <- mgu (c,c')
                                  s2 <- mgu ((apply s1 v) ,  (apply s1 v'))
                                  return (s2 @@ s1)
-mgu (t,        TVar u   )   =  varBind u t
 mgu (TVar u,   t        )   =  varBind u t
-mgu (t,        TCon u   )   =  varBind u t
+mgu (t,        TVar u   )   =  varBind u t
 mgu (TCon u,   t        )   =  varBind u t
+mgu (t,        TCon u   )   =  varBind u t
 mgu (TLit u,   TLit t   )   =  if (u==t || (mLits u t) || (mLits t u)) then Just[] else Nothing
 mgu (u,        t        )   =  if u==t then Just [] else Nothing
 
@@ -217,11 +217,11 @@ dom a = (map dom' a)
 
 toType a = U a
 
-conParameters (TArr a as) = a:conParameters as
-conParameters _ = []
+leftArr (TArr a (TArr b c)) = a --> leftArr (TArr b c)
+leftArr (TArr a _) = a
 
-ret (TArr a as) = ret as
-ret (a) = a
+rightArr (TArr a as) = rightArr as
+rightArr (a) = a
 
 cons (TCon i) = i
 cons (TApp c _) = cons c
