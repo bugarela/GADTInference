@@ -3,7 +3,6 @@ import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Language
 import Data.Char
-import Data.List.Split (splitOn)
 import Head
 import Type
 
@@ -15,15 +14,15 @@ parseExpr e = parse expr "Error:" e
 
 parseFile a = do f <- readFile a
                  let ls = lines f
-                 let fs = splitOn [""] (filter (notComment) ls)
-                 r <- mapM parseFile' fs
+                 let fs = (filter (notComment) ls)
+                 r <- parseFile' fs
                  return (r)
 
 parseFile' f = do let ds = map (parse dd "Error:") (init f)
                   let e = parse expr' "Error:" (last f)
                   return (ds,e)
 
-reservados = ".|=->{},;()\n "
+reservados = "$.|=->{},;()\n "
 operators = map varof ["+","-","*","/","==",">","<",">=","<=","==="]
 opsymbols = "><=-+*/"
 
@@ -68,9 +67,7 @@ alt = do spaces
          return (p,e)
 
 pat :: Parsec String () (Pat)
-pat = do {p <- plit; return p}
-      <|>
-      do {p <- pcon; return p}
+pat = do {p <- pcon; return p}
       <|>
       do {p <- pvar; return p}
       <|>
@@ -148,37 +145,12 @@ singleExpr = do try $ do char '('
              <|>
              do {t <- tuple; return t}
              <|>
-             do l <- lit
-                return l
-             <|>
              do var <- varReservada
                 return (var)
              <|>
              do var <- varName
                 spaces
                 return (Var var)
-
-lit :: Parsec String () (Expr)
-lit = do digits <- many1 digit
-         let n = foldl (\x d -> 10*x + toInteger (digitToInt d)) 0 digits
-         spaces
-         return (Lit (TInt (fromInteger n)))
-      <|>
-      do try $ do {string "True"}
-         spaces
-         return (Lit (TBool True))
-      <|>
-      do try $ do {string "False"}
-         spaces
-         return (Lit (TBool False))
-      <|>
-      do try $ do {string "Bool"}
-         spaces
-         return (Lit Bool)
-      <|>
-      do try $ do {string "Int"}
-         spaces
-         return (Lit Int)
 
 con :: Parsec String () (Expr)
 con = do c <- conName
@@ -188,28 +160,6 @@ pvar :: Parsec String () (Pat)
 pvar = do var <- varName
           spaces
           return (PVar var)
-
-plit :: Parsec String () (Pat)
-plit = do digits <- many1 digit
-          let n = foldl (\x d -> 10*x + toInteger (digitToInt d)) 0 digits
-          spaces
-          return (PLit (TInt (fromInteger n)))
-       <|>
-       do try $ do {string "True"}
-          spaces
-          return (PLit (TBool True))
-       <|>
-       do try $ do {string "False"}
-          spaces
-          return (PLit (TBool False))
-       <|>
-       do try $ do {string "Bool"}
-          spaces
-          return (PLit Bool)
-       <|>
-       do try $ do {string "Int"}
-          spaces
-          return (PLit Int)
 
 pcon :: Parsec String () (Pat)
 pcon = do c <- conName
@@ -228,9 +178,13 @@ conName = do a <- oneOf ['A'..'Z']
              as <- many (noneOf reservados)
              spaces
              return ([a] ++ as)
+          <|>
+          do try $ do as <- many1 digit
+                      spaces
+                      return (['0'] ++ as)
 
 varName :: Parsec String () ([Char])
-varName = do a <- noneOf (['A'..'Z'] ++ reservados)
+varName = do a <- noneOf (['A'..'Z'] ++ ['1'..'9'] ++ reservados)
              as <- many (noneOf reservados)
              spaces
              let s = [a] ++ as
@@ -290,15 +244,6 @@ tParam = do c <- conName
          do t <- tvar
             return t
 
-tlit :: Parsec String () (SimpleType)
-tlit = do try $ do {string "Int"}
-          spaces
-          return (TLit Int)
-       <|>
-       do try $ do {string "Bool"}
-          spaces
-          return (TLit Bool)
-
 gtcon :: Parsec String () (Assump)
 gtcon = do spaces
            c <- conName
@@ -316,8 +261,6 @@ gtcon = do spaces
 
 singleType :: Parsec String () SimpleType
 singleType = do try $ do {t <- tupleType; return t}
-             <|>
-             do {l <- tlit; return l}
              <|>
              do {c <- tParam; return c}
 

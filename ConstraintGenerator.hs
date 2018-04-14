@@ -15,18 +15,11 @@ conGen g (Var x) = do (t,c) <- tiContext g x
 conGen g (Con i) = do (t,c) <- tiContext g i
                       return (t, Simp c)
 
---LIT
-conGen g (Lit a) = return (TLit a, Simp E)
-
 -- IF
 conGen g (If x t e) = do (tx,fx) <- conGen g x
-                         --let s = unify tx (TLit Bool)
                          (tt,ft) <- conGen g t
                          (te,fe) <- conGen g e
-                         -- a <- freshVar
-                         --let u = unify tt te
-                         --let s' = u @@ s
-                         return (te, (Conj ([tx ~~ (TLit Bool)] ++ [tt ~~ te] ++ [fx] ++ [ft] ++ [fe])))
+                         return (te, (Conj ([tx ~~ (TCon "Bool")] ++ [tt ~~ te] ++ [fx] ++ [ft] ++ [fe])))
 
 --APP
 conGen g (App e1 e2) = do (t1,f1) <- conGen g e1
@@ -72,14 +65,13 @@ conGenAlt g a te (p,e) = do (t, fi) <- conGenPat g p e
                             return (Conj ([fi] ++ [te ~~ ti] ++ [a ~~ vi]))
 
 
-conGenPats _ [] = return ([],[],[],[])
+conGenPats g [] = return ([],[],g,[])
 conGenPats g (p:ps) = do (t1,c1,g1,b1) <- conGenPat' g p
                          (t2,c2,g2,b2) <- conGenPats g1 ps
                          return ([t1] ++ t2, [c1] ++ c2, (g /+/ g1) /+/ g2, b1 ++ b2)
 
 conGenPat' g (PVar i) = do b <- freshVar
                            return (b, E, (g /+/ [i:>:(convert b)]), [b])
-conGenPat' g (PLit tipo) = do return (TLit tipo, E, g, [])
 conGenPat' g (PCon i []) = do (t,c') <- tiContext g i
                               return (t, E, g, [])
 conGenPat' g (PCon i xs) = do (t,c) <- tiContext g i

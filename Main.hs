@@ -4,20 +4,20 @@ import Parser
 import ConstraintGenerator
 import ConstraintSolver
 
-solve' g e = runTI (solver (context ++ g) e)
+solve' g e = runTI (solver (context /+/ g) e)
 
-generate' g e = snd (runTI (conGen (context ++ g) e))
+generate' g e = clean (snd (runTI (conGen (context /+/ g) e)))
 
 solver g e = do (t,cs) <- conGen g e
-                let u = solveAll cs
+                let u = solveAll (clean cs)
                 return (apply u t)
 
 solve a = do as <- parseFile a
-             mapM (inferFile' solve') as
+             inferFile' solve' as
              return()
 
 generate a = do as <- parseFile a
-                mapM (inferFile' generate') as
+                inferFile' generate' as
                 return()
 
 inferFile' f (ds,e) = case e of

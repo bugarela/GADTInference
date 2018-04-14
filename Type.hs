@@ -51,7 +51,6 @@ instance Subs SimpleType where
                     case lookup u s of
                        Just t  -> t
                        Nothing -> TCon u
-  apply _ (TLit u)  = TLit u
 
   apply s (TArr l r) =  TArr (apply s l) (apply s r)
   apply s (TApp c v) =  TApp (apply s c) (apply s v)
@@ -62,7 +61,6 @@ instance Subs SimpleType where
   tv (TArr l r) = tv l `union` tv r
   tv (TApp c v) = tv c `union` tv v
   tv (TCon _) = []
-  tv (TLit _) = []
   tv (TGen _) = []
 
 
@@ -89,7 +87,7 @@ instance Subs SConstraint where
 instance Subs Constraint where
   apply s (Simp c) = Simp (apply s c)
   apply s (Conj cs) = Conj (map (apply s) cs)
-  apply s (Impl as bs c f) = (Impl (apply s as) bs (apply s c) (apply s f))
+  apply s (Impl as bs c f) = (Impl as bs (apply s c) (apply s f))
 
   tv _ = []
 
@@ -112,16 +110,7 @@ mgu (TApp c v, TApp c' v')  = do s1 <- mgu (c,c')
                                  return (s2 @@ s1)
 mgu (TVar u,   t        )   =  varBind u t
 mgu (t,        TVar u   )   =  varBind u t
-mgu (TCon u,   t        )   =  varBind u t
-mgu (t,        TCon u   )   =  varBind u t
-mgu (TLit u,   TLit t   )   =  if (u==t || (mLits u t) || (mLits t u)) then Just[] else Nothing
 mgu (u,        t        )   =  if u==t then Just [] else Nothing
-
-mLits (TBool _) (TBool _) = True
-mLits (TInt _) (TInt _) = True
-mLits Bool (TBool _) = True
-mLits Int (TInt _) = True
-mLits _ _ = False
 
 unify t t' =  case mgu (t,t') of
     Nothing -> error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t')
@@ -134,7 +123,11 @@ tiContext g ('(':is) = do t <- nTupleType is
                           r <- freshInstC t E
                           return (r)
 
-tiContext g i = if l /= [] then (freshInst t c) else error ("Variable " ++ i ++ " undefined\n")
+-- numbers are marked with 0 and typed as Int
+tiContext g ('0':is) = do a <- freshVar
+                          return (a, TEq a (TCon "Int"))
+
+tiContext g i = if l /= [] then (freshInst t c) else error ("Variable " ++ i ++ " undefined on context:" ++ show g ++ "\n")
     where
         l = dropWhile (\(i' :>: _) -> i /= i' ) g
         (_ :>: Constrained t c) = head l
@@ -249,15 +242,33 @@ context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVa
            ("Nothing", TApp (TCon "Maybe") (TVar "a")),
            ("Left", TArr (TVar "a") (TApp (TApp (TCon "Either") (TVar "a")) (TVar "b"))),
            ("Right", TArr (TVar "a") (TApp (TApp (TCon "Either") (TVar "a")) (TVar "b"))),
-           ("+", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
-           ("-", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
-           ("*", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
-           ("/", TArr (TLit Int) (TArr (TLit Int) (TLit Int))),
-           ("===", TArr (TVar "a") (TArr (TVar "a") (TLit Bool))),
-           ("==", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           (">=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           ("<=", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           (">", TArr (TLit Int) (TArr (TLit Int) (TLit Bool))),
-           ("<", TArr (TLit Int) (TArr (TLit Int) (TLit Bool)))]
+           ("True", TCon "Bool"),
+           ("False", TCon "Bool"),
+           ("+", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))),
+           ("-", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))),
+           ("*", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))),
+           ("/", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Int"))),
+           ("===", TArr (TVar "a") (TArr (TVar "a") (TCon "Bool"))),
+           ("==", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))),
+           (">=", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))),
+           ("<=", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))),
+           (">", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))),
+           ("<", TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool")))]
 
 typeFromAssump (i:>:t) = t
+
+clean (Conj cs) = Conj (clean' (Conj cs))
+clean c = c
+
+clean' (Conj []) = []
+clean' (Conj cs) = foldr1 (++) (map clean' cs)
+clean' (Impl as bs c f) = [Impl as bs (cleanS c) (clean f)]
+clean' (Simp a) = if cls == E then [] else [Simp cls] where cls = (cleanS a)
+
+cleanS c = if cls == [] then E else SConj cls where cls = (cleanS' c)
+
+cleanS' (SConj []) = []
+cleanS' (SConj cs) = foldr1 (++) (map cleanS' cs)
+cleanS' (E) = []
+cleanS' (Unt as bs c) = [Unt as bs (cleanS c)]
+cleanS' c = [c]

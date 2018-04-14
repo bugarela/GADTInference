@@ -8,11 +8,8 @@ data Type = Forall SimpleType | U SimpleType deriving (Eq, Show)
 data Assump = Id :>: ConstrainedType deriving (Eq, Show)
 data ConstrainedType = Constrained Type SConstraint deriving (Eq, Show)
 
-data Literal = Int | Bool | TInt Int | TBool Bool deriving (Eq)
-
 data SimpleType  = TVar Id
                  | TArr SimpleType SimpleType
-                 | TLit Literal
                  | TCon Id
                  | TApp SimpleType SimpleType
                  | TGen Int
@@ -21,7 +18,6 @@ data SimpleType  = TVar Id
 data Expr = Var Id
           | App Expr Expr
           | Lam Id Expr
-          | Lit Literal
           | Con Id
           | If Expr Expr Expr
           | Case Expr [(Pat,Expr)]
@@ -30,7 +26,6 @@ data Expr = Var Id
           deriving (Eq, Show)
 
 data Pat = PVar Id
-         | PLit Literal
          | PCon Id [Pat]
          deriving (Eq, Show)
 
@@ -51,25 +46,18 @@ instance Show SimpleType where
     show (TArr t t') = show t++"->"++show t'
     show (TCon i) = i
     show (TApp c v) = showApp (listApp c v)
-    show (TLit tipo) = show tipo
     show (TGen n) = "tg" ++ show n
-
-instance Show Literal where
-    show (TInt _) = "Int"
-    show (TBool _) = "Bool"
-    show Int = "Int"
-    show Bool = "Bool"
 
 instance Show SConstraint where
     show (TEq t t') = "(" ++ show t ++ " ~ " ++ show t' ++ ")"
-    show (Unt as bs c) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ ")"
-    show E = ""
+    show (Unt as bs c) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ ")"
+    show E = "e"
     show (SConj [c]) = show c
     show (SConj (c:cs)) = show c ++ "\n" ++ show (SConj cs)
 
 instance Show Constraint where
     show (Simp c) = show c
-    show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ show c ++ " imp " ++ show f ++ ")"
+    show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine' f ++ ")"
     show (Conj [c]) = show c
     show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)
 
@@ -87,3 +75,11 @@ tup a = a !! 0 == '(' && a !! 1 == ','
 
 showTuple [x] = x ++ ")"
 showTuple (x:xs) = x ++ "," ++ showTuple xs
+
+showInLine (SConj [c]) = show c
+showInLine (SConj (c:cs)) = show c ++ " ^ " ++ showInLine (SConj cs)
+showInLine c = show c
+
+showInLine' (Conj [c]) = show c
+showInLine' (Conj (c:cs)) = show c ++ " ^ " ++ showInLine' (Conj cs)
+showInLine' c = show c
