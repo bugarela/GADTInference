@@ -43,7 +43,7 @@ data Constraint = Simp SConstraint
 instance Show SimpleType where
     show (TVar i) = i
     show (TArr (TArr a b) t') = "("++show (TArr a b)++")"++"->"++show t'
-    show (TArr t t') = show t++"->"++show t'
+    show (TArr t t') = "(" ++ show t++"->"++show t'++")"
     show (TCon i) = i
     show (TApp c v) = showApp (listApp c v)
     show (TGen n) = "tg" ++ show n
