@@ -1,2 +1,3 @@
-data T a where {T1 :: (a ~ Bool) => Int -> T a; T2 :: T a}
-e3 = \x -> case x of {T1 n -> (n > 0);T2 -> True}
+data T a where {T1 :: (a ~ Int) => a -> T a; T2 :: a -> T a; T3 :: (a ~ Bool) => a -> T a}
+e1 = \z -> case z of {(T1 n, y) -> if y then n else n; (T2 x, y) -> if y then x else x; (T3 b, y) -> y}
+-- should be (T t, Bool) -> t

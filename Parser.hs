@@ -47,6 +47,12 @@ expr = do l <- lam
           return $ foldl1 App apps
        <|>
        do {t <- tuple; return t}
+       <|> do char '('
+              spaces
+              e <- expr
+              char ')'
+              spaces
+              return e
 
 
 term :: Parsec String () (Expr)
@@ -125,7 +131,7 @@ letex = do try $ do string "let "
            spaces
            char '='
            spaces
-           e <- singleExpr
+           e <- expr
            spaces
            string "in "
            spaces
@@ -143,14 +149,14 @@ singleExpr = do try $ do char '('
                          spaces
                          return e
              <|>
-             do {t <- tuple; return t}
-             <|>
              do var <- varReservada
                 return (var)
              <|>
              do var <- varName
                 spaces
                 return (Var var)
+             <|>
+             do {t <- tuple; return t}
 
 con :: Parsec String () (Expr)
 con = do c <- conName
@@ -243,6 +249,14 @@ tParam = do c <- conName
          <|>
          do t <- tvar
             return t
+         <|>
+         do char '('
+            spaces
+            t <-tParam
+            spaces
+            char ')'
+            spaces
+            return t
 
 gtcon :: Parsec String () (Assump)
 gtcon = do spaces
@@ -259,25 +273,34 @@ gtcon = do spaces
            spaces
            return (c :>: quantifyAllC s cs)
 
-singleType :: Parsec String () SimpleType
-singleType = do try $ do {t <- tupleType; return t}
-             <|>
-             do {c <- tParam; return c}
-
 typeScheme :: Parsec String () SimpleType
-typeScheme = do try $ do t <- singleType
+typeScheme = do try $ do t <- typeScheme'
+                         spaces
+                         string "->"
                          spaces
                          t' <- typeScheme
-                         return (TApp t t')
-            <|>
-            do try $ do t <- singleType
-                        spaces
-                        string "->"
-                        spaces
-                        t' <- typeScheme
-                        return (TArr t t')
-            <|> do t <- singleType
-                   return t
+                         return (TArr t t')
+             <|> typeScheme'
+
+typeScheme' :: Parsec String () SimpleType
+typeScheme' = do try $ do t <- singleType
+                          spaces
+                          t' <- typeScheme'
+                          return (TApp t t')
+             <|>
+             do singleType
+
+singleType :: Parsec String () SimpleType
+singleType = do try $ do char '('
+                         spaces
+                         t <- typeScheme
+                         char ')'
+                         spaces
+                         return t
+             <|>
+             do try $ do {c <- tParam; return c}
+             <|>
+             do {t <- tupleType; return t}
 
 buildADT i ps (c,vs) = c :>: quantifyAll (foldl1 TArr (vs ++ [foldl1 TApp ([TCon i]++ps)]))
 
