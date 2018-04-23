@@ -23,7 +23,7 @@ generate a = do as <- parseFile a
 inferFile' f (ds,e) = case e of
                       Left err -> print err
                       Right e -> case (extract ds) of
-                                    Right s -> print (f (foldr1 (++) s) e)
+                                    Right s -> print (f (fold s) e)
                                     Left errs -> print errs
 
 
@@ -40,3 +40,7 @@ extract' (d:ds) = case d of
 extractErr (d:ds) = case d of
                      Left err -> err
                      Right a -> extractErr ds
+
+-- foldr1 doesn't like empty lists
+fold [] = []
+fold (f:fs) = f ++ fold fs
