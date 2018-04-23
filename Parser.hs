@@ -22,11 +22,12 @@ parseFile' f = do let ds = map (parse dd "Error:") (init f)
                   let e = parse expr' "Error:" (last f)
                   return (ds,e)
 
-reservados = "$.|=->{},;()\n "
-operators = map varof ["+","-","*","/","==",">","<",">=","<=","==="]
-opsymbols = "><=-+*/"
+reservados = "$.&|=->{},;()\n "
+operators = map varof ["+","-","*","/","==",">","<",">=","<=","===","&&","||"]
+opsymbols = "><=-+*/|&"
 
 notComment ('-':('-':_)) = False
+notComment [] = False
 notComment _ = True
 
 varof c = Var c
@@ -283,10 +284,8 @@ typeScheme = do try $ do t <- typeScheme'
              <|> typeScheme'
 
 typeScheme' :: Parsec String () SimpleType
-typeScheme' = do try $ do t <- singleType
-                          spaces
-                          t' <- typeScheme'
-                          return (TApp t t')
+typeScheme' = do try $ do ts <- many1 singleType
+                          return (foldl1 TApp ts)
              <|>
              do singleType
 
