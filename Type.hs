@@ -34,9 +34,11 @@ infixr 4 @@
 s1 @@ s2    = [ (u, apply s1 t) | (u,t) <- s2 ] ++ s1
 
 infixr 5 ~~
-(~~) :: SimpleType -> SimpleType -> Constraint
-t1 ~~ t2 = Simp (TEq t1 t2)
+(~~) :: SimpleType -> SimpleType -> GConstraint
+t1 ~~ t2 = Proper (Simp (TEq t1 t2))
 
+properImpl :: [SimpleType] -> [Id] -> SConstraint -> Constraint -> GConstraint
+properImpl as bs c f = Proper (Impl as bs c (Proper f))
 ----------------------------
 class Subs t where
   apply :: Subst -> t -> t
@@ -91,9 +93,75 @@ instance Subs Constraint where
 
   tv _ = []
 
+instance Subs GConstraint where
+  apply s (Proper c) = Proper (apply s c)
+  apply s (Group gs) = Group (map (\(a,b) -> (apply s a, apply s b)) gs)
+  apply s (GConj cs) = GConj (map (apply s) cs)
+
+  tv _ = []
+
 instance Subs ConstrainedType where
   apply s (Constrained a t) = Constrained a (apply s t)
   tv (Constrained _ t) = tv t
+
+class Cons t where
+  instC :: [SimpleType] -> t -> t
+  simple :: t -> SConstraint
+  clean :: t -> t
+  clean' :: t -> [t]
+
+instance Cons SConstraint where
+  instC _ (E) = E
+  instC fs (TEq t t') = (TEq (inst fs t) (inst fs t'))
+  instC fs (Unt ts is cs) = (Unt (map (inst fs) ts) is (instC fs cs))
+  instC fs (SConj cs) = (SConj (map (instC fs) cs))
+
+  simple a = a
+
+  clean c = if cls == [] then E else SConj cls where cls = (clean' c)
+
+  clean' (SConj []) = []
+  clean' (SConj cs) = foldr1 (++) (map clean' cs)
+  clean' (E) = []
+  clean' (Unt as bs c) = [Unt as bs (clean c)]
+  clean' c = [c]
+
+instance Cons Constraint where
+  instC fs (Simp c) = (Simp (instC fs c))
+  instC fs (Impl ts is cs g) = (Impl (map (inst fs) ts) is (instC fs cs) (instC fs g))
+  instC fs (Conj cs) = (Conj (map (instC fs) cs))
+
+  simple (Simp c) = c
+  simple (Conj (c:cs)) = SConj ([simple c] ++ [simple (Conj cs)])
+  simple (Impl as bs E g) = Unt as bs (simple g)
+  simple _ = E
+
+  clean (Conj cs) = Conj (clean' (Conj cs))
+  clean c = c
+
+  clean' (Conj []) = []
+  clean' (Conj cs) = foldr1 (++) (map clean' cs)
+  clean' (Impl as bs c f) = [Impl as bs (clean c) (clean f)]
+  clean' (Simp a) = if cls == E then [] else [Simp cls] where cls = (clean a)
+
+instance Cons GConstraint where
+  instC fs (Proper f) = (Proper (instC fs f))
+  instC fs (Group ts) = (Group (map (\(t,g) -> (inst fs t, instC fs g)) ts))
+  instC fs (GConj gs) = (GConj (map (instC fs) gs))
+
+  simple (Proper f) = simple f
+  simple (GConj (c:cs)) = SConj ([simple c] ++ [simple (GConj cs)])
+  simple _ = E
+
+  clean (GConj cs) = GConj (clean' (GConj cs))
+  clean c = c
+
+  clean' (GConj []) = []
+  clean' (GConj cs) = foldr1 (++) (map clean' cs)
+  clean' (Group gs) = [Group (map (\(t,g) -> (t,clean g)) gs)]
+  clean' (Proper a) = if cls == Simp E then [] else [Proper cls] where cls = (clean a)
+
+
 
 ------------------------------------
 varBind :: Id -> SimpleType -> Maybe Subst
@@ -187,21 +255,6 @@ inst fs (TApp l r) = TApp (inst fs l) (inst fs r)
 inst fs (TGen n) = fs !! n
 inst _ t = t
 
-instC :: [SimpleType] -> SConstraint -> SConstraint
-instC _ (E) = E
-instC fs (TEq t t') = (TEq (inst fs t) (inst fs t'))
-instC fs (Unt ts is cs) = (Unt (map (inst fs) ts) is (instC fs cs))
-instC fs (SConj cs) = (SConj (map (instC fs) cs))
-
-instF fs (Simp c) = (Simp (instC fs c))
-instF fs (Impl ts is cs f) = (Impl (map (inst fs) ts) is (instC fs cs) (instF fs f))
-instF fs (Conj cs) = (Conj (map (instF fs) cs))
-
-simple (Simp c) = c
-simple (Conj (c:cs)) = SConj ([simple c] ++ [simple (Conj cs)])
-simple (Impl as bs E f) = Unt as bs (simple f)
-simple _ = E
-
 
 dom' (a, TVar b) = if a == b then "" else a
 dom' (a,_) = a
@@ -258,19 +311,3 @@ context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVa
            ("||", TArr (TCon "Bool") (TArr (TCon "Bool") (TCon "Bool")))]
 
 typeFromAssump (i:>:t) = t
-
-clean (Conj cs) = Conj (clean' (Conj cs))
-clean c = c
-
-clean' (Conj []) = []
-clean' (Conj cs) = foldr1 (++) (map clean' cs)
-clean' (Impl as bs c f) = [Impl as bs (cleanS c) (clean f)]
-clean' (Simp a) = if cls == E then [] else [Simp cls] where cls = (cleanS a)
-
-cleanS c = if cls == [] then E else SConj cls where cls = (cleanS' c)
-
-cleanS' (SConj []) = []
-cleanS' (SConj cs) = foldr1 (++) (map cleanS' cs)
-cleanS' (E) = []
-cleanS' (Unt as bs c) = [Unt as bs (cleanS c)]
-cleanS' c = [c]

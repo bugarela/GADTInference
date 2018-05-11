@@ -36,9 +36,14 @@ data SConstraint = TEq SimpleType SimpleType
                  deriving Eq
 
 data Constraint = Simp SConstraint
-                | Impl [SimpleType] [Id] SConstraint Constraint
+                | Impl [SimpleType] [Id] SConstraint GConstraint
                 | Conj [Constraint]
                 deriving Eq
+
+data GConstraint = Proper Constraint
+                 | Group [(SimpleType,GConstraint)]
+                 | GConj [GConstraint]
+                 deriving Eq
 
 instance Show SimpleType where
     show (TVar i) = i
@@ -57,9 +62,16 @@ instance Show SConstraint where
 
 instance Show Constraint where
     show (Simp c) = show c
-    show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine' f ++ ")"
+    show (Impl as bs c g) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine' g ++ ")"
     show (Conj [c]) = show c
     show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)
+
+instance Show GConstraint where
+    show (Proper f) = show f
+    show (Group [g]) = "-" ++ show g
+    show (Group (g:gs)) = "-" ++ show g ++ "\n" ++ show (Group gs)
+    show (GConj [c]) = show c
+    show (GConj (c:cs)) = show c ++ "\n" ++ show (GConj cs)
 
 showApp [] = ""
 showApp [x] = x
@@ -80,6 +92,6 @@ showInLine (SConj [c]) = show c
 showInLine (SConj (c:cs)) = show c ++ " ^ " ++ showInLine (SConj cs)
 showInLine c = show c
 
-showInLine' (Conj [c]) = show c
-showInLine' (Conj (c:cs)) = show c ++ " ^ " ++ showInLine' (Conj cs)
+showInLine' (GConj [c]) = show c
+showInLine' (GConj (c:cs)) = show c ++ " ^ " ++ showInLine' (GConj cs)
 showInLine' c = show c
