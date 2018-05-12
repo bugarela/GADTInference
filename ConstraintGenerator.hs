@@ -4,6 +4,7 @@ import Head
 import Type
 import ConstraintSolver
 import Data.List
+import Lcg
 
 conGen :: ([Assump]) -> Expr -> TI (SimpleType,GConstraint)
 
@@ -37,13 +38,13 @@ conGen g (Lam i e) = do a <- freshVar
 conGen g (Let (i,e1) e2) = do a <- freshVar
                               (t,g1) <- conGen (g /+/ [i:>:(convert a)]) e1
                               let gs = GConj ([g1] ++ [a ~~ t])
-                              let s = sSolve (simple gs)
+                              s <- solver (simple gs)
                               let t' = apply s t
                               let q = quantify (tv t' \\ tv (apply s g)) t'
                               (vs,q') <- (freshSubstC q)
                               let bs = tv vs
                               (v,g2) <- conGen (g /+/ [i:>:(convert (inst vs q'))]) e2
-                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) bs E (instG vs gs))])
+                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) bs E (instC vs gs))])
                               return (v,gr)
 
 --LETA
@@ -57,13 +58,15 @@ conGen g (LetA (i,(Constrained t cs),e1) e2) = do t1 <- freshInstance t
 conGen g (Case e ls) = do (te,ge) <- conGen g e
                           a <- freshVar
                           fs <- mapM (conGenAlt g a te) ls
-                          let gr = GConj ([ge] ++ fs)
+                          let gs = map fst fs
+                          let cs = map snd fs
+                          let gr = GConj ([ge] ++ [Group gs] ++ cs)
                           return (a,gr)
 
 conGenAlt g a te (p,e) = do (t, fi) <- conGenPat g a p e
                             let ti = leftArr t
-                            let vi = rightArr t
-                            return (Conj ([fi] ++ [te ~~ ti]))
+                                vi = rightArr t
+                            return ((ti --> vi,fi), te ~~ ti)
 
 
 conGenPats g [] = return ([],[],g,[])
@@ -98,4 +101,4 @@ conGenPat g a (PCon i xs) e = do (t,c) <- tiContext g i
                                  return ((apply u b) --> te, f')
 
 conGenPat g a p _ = do (t,c,_,b) <- conGenPat' g p
-                       return (t,Simp c)
+                       return (t,Proper (Simp c))

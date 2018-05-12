@@ -4,13 +4,13 @@ import Parser
 import ConstraintGenerator
 import ConstraintSolver
 
-solve' g e = runTI (solver (context /+/ g) e)
+solve' g e = runTI (generateAndSolve (context /+/ g) e)
 
 generate' g e = clean (snd (runTI (conGen (context /+/ g) e)))
 
-solver g e = do (t,cs) <- conGen g e
-                let u = solveAll (clean cs)
-                return (apply u t)
+generateAndSolve g e = do (t,cs) <- conGen g e
+                          u <- solveAll (clean cs)
+                          return (apply u t)
 
 solve a = do as <- parseFile a
              inferFile' solve' as
@@ -40,7 +40,3 @@ extract' (d:ds) = case d of
 extractErr (d:ds) = case d of
                      Left err -> err
                      Right a -> extractErr ds
-
--- foldr1 doesn't like empty lists
-fold [] = []
-fold (f:fs) = f ++ fold fs

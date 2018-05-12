@@ -228,7 +228,7 @@ gadt = do string "data"
           spaces
           rs <- gtcon `sepBy` (char ';')
           char '}'
-          return (rs)
+          return (toGADT rs)
 
 tvar :: Parsec String () (SimpleType)
 tvar = do var <- varName

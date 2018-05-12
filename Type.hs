@@ -57,14 +57,17 @@ instance Subs SimpleType where
   apply s (TArr l r) =  TArr (apply s l) (apply s r)
   apply s (TApp c v) =  TApp (apply s c) (apply s v)
   apply _ (TGen n) = TGen n
+  apply _ (TSkolem n) = TSkolem n
 
+  apply s (TGADT u)  =
+                    case lookup u s of
+                       Just t  -> t
+                       Nothing -> TGADT u
 
   tv (TVar u)  = [u]
   tv (TArr l r) = tv l `union` tv r
   tv (TApp c v) = tv c `union` tv v
-  tv (TCon _) = []
-  tv (TGen _) = []
-
+  tv _ = []
 
 instance Subs a => Subs [a] where
   apply s     = map (apply s)
@@ -107,6 +110,7 @@ instance Subs ConstrainedType where
 class Cons t where
   instC :: [SimpleType] -> t -> t
   simple :: t -> SConstraint
+  groups :: t -> GConstraint
   clean :: t -> t
   clean' :: t -> [t]
 
@@ -117,6 +121,8 @@ instance Cons SConstraint where
   instC fs (SConj cs) = (SConj (map (instC fs) cs))
 
   simple a = a
+
+  groups _ = Proper (Simp E)
 
   clean c = if cls == [] then E else SConj cls where cls = (clean' c)
 
@@ -136,6 +142,8 @@ instance Cons Constraint where
   simple (Impl as bs E g) = Unt as bs (simple g)
   simple _ = E
 
+  groups _ = Proper (Simp E) -- change for nested cases (maybe)
+
   clean (Conj cs) = Conj (clean' (Conj cs))
   clean c = c
 
@@ -153,6 +161,10 @@ instance Cons GConstraint where
   simple (GConj (c:cs)) = SConj ([simple c] ++ [simple (GConj cs)])
   simple _ = E
 
+  groups (Group a) = (Group a)
+  groups (GConj gs) = GConj (map groups gs)
+  groups (Proper _) = Proper (Simp E)
+
   clean (GConj cs) = GConj (clean' (GConj cs))
   clean c = c
 
@@ -167,9 +179,12 @@ instance Cons GConstraint where
 varBind :: Id -> SimpleType -> Maybe Subst
 varBind u t | t == TVar u   = Just []
             | t == TCon u   = Just []
+            | t == TGADT u  = Just []
             | u `elem` tv t = Nothing
             | otherwise     = Just [(u, t)]
 
+mgu (TSkolem _, _) = Just []
+mgu (_,TSkolem _) = Just []
 mgu (TArr l r,  TArr l' r') = do s1 <- mgu (l,l')
                                  s2 <- mgu ((apply s1 r),(apply s1 r'))
                                  return (s2 @@ s1)
@@ -184,6 +199,8 @@ unify t t' =  case mgu (t,t') of
     Nothing -> error ("unification: trying to unify\n" ++ show t ++ "\nand\n" ++ show t')
     Just s  -> s
 
+unifyAll v [] = []
+unifyAll v (t:ts) = (unifyAll (apply s v) ts) @@ s where s = unify v t
 
 tiContext :: [Assump] -> Id -> TI (SimpleType, SConstraint)
 -- n-tuple on context
@@ -205,7 +222,6 @@ check _ (Nothing) = False
 check us (Just []) = True
 check us (Just ((a,_):ss)) = if a `elem` us then False else check us (Just ss)
 
-
 appParametros i [] = i
 appParametros (TArr _ i) (_:ts) = appParametros i ts
 
@@ -223,6 +239,9 @@ quantifyAll t = quantify (tv t) t
 quantifyAllC t cs = quantifyC (tv t) t cs
 
 quantifyAssump (i,t) = i:>:quantifyAll t
+
+skolemize :: [Id] -> SimpleType -> SimpleType
+skolemize as t = let s = map (\i -> (i,TSkolem i)) as in apply s t
 
 countTypes (TArr l r) = max (countTypes l) (countTypes r)
 countTypes (TApp l r) = max (countTypes l) (countTypes r)
@@ -269,14 +288,23 @@ leftArr (TArr a _) = a
 rightArr (TArr a as) = rightArr as
 rightArr (a) = a
 
+cons (TGADT i) = i
 cons (TCon i) = i
 cons (TApp c _) = cons c
 
-findAs (TCon i) = []
 findAs (TApp c (TVar a)) = findAs c ++ [a]
 findAs _ = []
 
 findBs ps as = (tv ps) \\ as
+
+gtv (TApp (TGADT i) t) = findAs t
+gtv _ = []
+
+toGADT [] = []
+toGADT ((i :>: (Constrained (Forall a) c)):as) = (i :>: (Constrained (Forall (toGADT' a)) c)):toGADT as
+toGADT' (TApp (TCon i) t) =(TApp (TGADT i) t)
+toGADT' (TArr a b) = (TArr a (toGADT' b))
+toGADT' a = a
 
 makeTvar i = TVar i
 
@@ -311,3 +339,7 @@ context = map quantifyAssump [("Just", TArr (TVar "a") (TApp (TCon "Maybe") (TVa
            ("||", TArr (TCon "Bool") (TArr (TCon "Bool") (TCon "Bool")))]
 
 typeFromAssump (i:>:t) = t
+
+-- foldr1 doesn't like empty lists
+fold [] = []
+fold (f:fs) = f ++ fold fs
