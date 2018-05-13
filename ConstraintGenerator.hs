@@ -96,9 +96,9 @@ conGenPat g a (PCon i xs) e = do (t,c) <- tiContext g i
                                  (te,ge) <- conGen g' e
                                  let bs = findBs ta (map idOf (as ++ [b]))
                                  let as' = intersect as (map makeTvar (tv (rightArr t)))
-                                 let f = Proper (Impl ([a] ++ as' ++ map makeTvar (tv g ++ tv te)) bs (SConj ([c] ++ cs)) (te ~~ a))
-                                 let f' = GConj ([apply u f] ++ [ge])
-                                 return ((apply u b) --> te, f')
+                                 let f = Proper (Impl ([a] ++ as' ++ map makeTvar (tv g ++ tv te)) bs (SConj ([c] ++ cs)) (GConj ([(te ~~ a)] ++ [ge])))
+                                 --let f' = GConj ([apply u f] ++ [ge])
+                                 return ((apply u b) --> te, apply u f)
 
 conGenPat g a p _ = do (t,c,_,b) <- conGenPat' g p
                        return (t,Proper (Simp c))

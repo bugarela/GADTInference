@@ -138,8 +138,10 @@ instance Cons Constraint where
   instC fs (Conj cs) = (Conj (map (instC fs) cs))
 
   simple (Simp c) = c
+  simple (Conj [c]) = simple c
   simple (Conj (c:cs)) = SConj ([simple c] ++ [simple (Conj cs)])
   simple (Impl as bs E g) = Unt as bs (simple g)
+  simple (Impl as bs c g) = if (clean c == E) then Unt as bs (simple g) else E
   simple _ = E
 
   groups _ = Proper (Simp E) -- change for nested cases (maybe)
@@ -158,8 +160,9 @@ instance Cons GConstraint where
   instC fs (GConj gs) = (GConj (map (instC fs) gs))
 
   simple (Proper f) = simple f
+  simple (GConj [c]) = simple c
   simple (GConj (c:cs)) = SConj ([simple c] ++ [simple (GConj cs)])
-  simple _ = E
+  simple (Group gs) = simple (GConj (map snd gs)) -- maybe this shoul be E
 
   groups (Group a) = (Group a)
   groups (GConj gs) = GConj (map groups gs)
@@ -297,7 +300,10 @@ findAs _ = []
 
 findBs ps as = (tv ps) \\ as
 
-gtv (TApp (TGADT i) t) = findAs t
+gtv (TApp (TGADT i) (TVar a)) = [a]
+gtv (TApp (TApp (TGADT i) (TVar a)) t) = findAs t ++ [a]
+gtv (TApp a b) = gtv a ++ gtv b
+gtv (TArr a b) = gtv a
 gtv _ = []
 
 toGADT [] = []

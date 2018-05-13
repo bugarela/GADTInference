@@ -9,7 +9,8 @@ import Lcg
 solveAll :: GConstraint -> TI Subst
 solveAll gs = do ss <- solver (simple gs)
                  sg <- solver (apply ss (groups gs))
-                 return (sg @@ ss)
+                 sa <- solver (apply (sg @@ ss) gs)
+                 return (sa @@ sg @@ ss)
 
 class Solver t where
   solver :: t -> TI Subst
@@ -48,15 +49,16 @@ instance Solver GConstraint where
   solver (GConj (c:cs)) = do s <- solver c
                              ss <- (solver (GConj (map (apply s) cs)))
                              return (ss @@ s)
-  solver (Group gr) = do let gs = map snd gr
-                             ts = map fst gr
-                         teta <- solveAll (GConj gs)
-                         let vs = apply teta ts
+  solver (Group gr) = do vs <- mapM solveImpl gr
                          t <- lcg (map toType vs)
-                         let as = gtv (leftArr t)
+                         let as = gtv (t)
                              sk = skolemize as t
-                             u = unifyAll sk vs
-                         return (unifyAll (apply u t) ts)
+                         --error (show vs)
+                         let u = unifyAll sk vs
+                         return (unifyAll (apply u sk) (map fst gr))
 
-aaa :: [Type] -> [Type]
-aaa a = a
+solveImpl (t,(Proper (Impl _ _ c g)))  = do s <- solveAll (GConj [(Proper (Simp c)),g])
+                                            return (apply s t)
+solveImpl (t,(Proper (Simp (Unt _ _ c))))  = do s <- solver c
+                                                return (apply s t)
+solveImpl _ = error "solveImpl of non-Impl constraint"

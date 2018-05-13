@@ -33,6 +33,10 @@ lcgp' t1@(TCon id1) t2@(TCon id2) s
   | id1==id2  = return (t1,s)
   | otherwise = do TVar a <- freshVar
                    return (TVar a, ((t1,t2),a):s)
+lcgp' t1@(TGADT id1) t2@(TGADT id2) s
+  | id1==id2  = return (t1,s)
+  | otherwise = do TVar a <- freshVar
+                   return (TVar a, ((t1,t2),a):s)
 lcgp' t1@(TApp t1a t1r) t2@(TApp t2a t2r) s =
   do (ta,s1) <- lcgp t1a t2a s
      (tr,s2) <- lcgp t1r t2r s1
@@ -86,6 +90,5 @@ lcgi ts = do t <- lcgn ts; return (Just t)
 t1 = [Forall (TArr (TCon "Int") (TArr (TCon "Int") (TCon "Bool"))), Forall (TArr (TCon "Bool") (TArr (TCon "Bool") (TCon "Bool"))), Forall (TArr (TCon "Char") (TArr (TCon "Char") (TCon "Bool")))]
 t2 = [Forall (TArr (TApp (TApp (TCon "(,)") (TCon "Int")) (TCon "Int")) (TCon "Bool")), Forall (TArr (TApp (TApp (TCon "(,)") (TCon "Bool")) (TCon "Bool")) (TCon "Bool"))]
 t3 = [Forall (TArr (TApp (TApp (TApp (TCon "(,,)") (TCon "Int")) (TCon "Int")) (TCon "Bool")) (TCon "Bool")), Forall (TArr (TApp (TApp (TApp (TCon "(,,)") (TCon "Char")) (TCon "Char")) (TCon "Int")) (TCon "Int"))]
-
 
 testlcg ts = runTI (lcg ts)
