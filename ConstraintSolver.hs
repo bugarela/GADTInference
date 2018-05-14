@@ -8,9 +8,8 @@ import Lcg
 
 solveAll :: GConstraint -> TI Subst
 solveAll gs = do ss <- solver (simple gs)
-                 sg <- solver (apply ss (groups gs))
-                 sa <- solver (apply (sg @@ ss) gs)
-                 return (sa @@ sg @@ ss)
+                 sa <- solver (apply ss gs)
+                 return (sa @@ ss)
 
 class Solver t where
   solver :: t -> TI Subst
@@ -61,4 +60,5 @@ solveImpl (t,(Proper (Impl _ _ c g)))  = do s <- solveAll (GConj [(Proper (Simp 
                                             return (apply s t)
 solveImpl (t,(Proper (Simp (Unt _ _ c))))  = do s <- solver c
                                                 return (apply s t)
-solveImpl _ = error "solveImpl of non-Impl constraint"
+solveImpl (t,GConj (g:gs)) = solveImpl (t,g)
+solveImpl _ = error "solveImpl of wrong formated constraints"

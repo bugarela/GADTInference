@@ -26,6 +26,7 @@ reservados = "$.&|=->{},;()\n "
 operators = map varof ["+","-","*","/","==",">","<",">=","<=","===","&&","||"]
 opsymbols = "><=-+*/|&"
 
+notComment (' ':s) = notComment s
 notComment ('-':('-':_)) = False
 notComment [] = False
 notComment _ = True

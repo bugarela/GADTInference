@@ -66,7 +66,7 @@ instance Show SConstraint where
 
 instance Show Constraint where
     show (Simp c) = show c
-    show (Impl as bs c g) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine' g ++ ")"
+    show (Impl as bs c g) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine'' g ++ ")"
     show (Conj [c]) = show c
     show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)
 
@@ -92,10 +92,16 @@ tup a = a !! 0 == '(' && a !! 1 == ','
 showTuple [x] = x ++ ")"
 showTuple (x:xs) = x ++ "," ++ showTuple xs
 
-showInLine (SConj [c]) = show c
-showInLine (SConj (c:cs)) = show c ++ " ^ " ++ showInLine (SConj cs)
+showInLine (SConj [c]) = showInLine c
+showInLine (SConj (c:cs)) = showInLine c ++ " ^ " ++ showInLine (SConj cs)
 showInLine c = show c
 
-showInLine' (GConj [c]) = show c
-showInLine' (GConj (c:cs)) = show c ++ " ^ " ++ showInLine' (GConj cs)
+showInLine' (Conj [c]) = showInLine' c
+showInLine' (Conj (c:cs)) = showInLine' c ++ " ^ " ++ showInLine' (Conj cs)
+showInLine' (Simp c) = showInLine c
 showInLine' c = show c
+
+showInLine'' (GConj [c]) = showInLine'' c
+showInLine'' (GConj (c:cs)) = showInLine'' c ++ " ^ " ++ showInLine'' (GConj cs)
+showInLine'' (Proper c) = showInLine' c
+showInLine'' c = show c

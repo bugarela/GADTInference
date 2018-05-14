@@ -1,3 +1,3 @@
-data T a where {T1 :: (a ~ Int) => a -> T a; T3 :: (a ~ Bool) => a -> T a}
-e2 = \z -> case z of {(T1 n, y, f) -> f n; (T3 b, y, f) -> f y}
--- should not infer
+data Erk a b where {I :: (a ~ Int) => Int -> Erk a b; B :: (b ~ Bool) => Bool -> Erk a b}
+e = \x -> case x of {I a -> a + 1; B b -> b && True}
+-- Example 2 SCP-GADT.pdf (pg 10)

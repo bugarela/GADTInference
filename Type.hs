@@ -147,6 +147,7 @@ instance Cons Constraint where
   groups _ = Proper (Simp E) -- change for nested cases (maybe)
 
   clean (Conj cs) = Conj (clean' (Conj cs))
+  clean (Simp c) = Simp (clean c)
   clean c = c
 
   clean' (Conj []) = []
@@ -169,6 +170,7 @@ instance Cons GConstraint where
   groups (Proper _) = Proper (Simp E)
 
   clean (GConj cs) = GConj (clean' (GConj cs))
+  clean (Proper c) = Proper (clean c)
   clean c = c
 
   clean' (GConj []) = []
