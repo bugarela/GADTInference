@@ -196,6 +196,8 @@ mgu (TApp c v, TApp c' v')  = do s1 <- mgu (c,c')
                                  return (s2 @@ s1)
 mgu (TVar u,   t        )   =  varBind u t
 mgu (t,        TVar u   )   =  varBind u t
+mgu (TGADT u,  TCon t   )   =  if u==t then Just [] else Nothing
+mgu (TCon u,   TGADT t  )   =  if u==t then Just [] else Nothing
 mgu (u,        t        )   =  if u==t then Just [] else Nothing
 
 unify t t' =  case mgu (t,t') of
@@ -277,6 +279,9 @@ inst fs (TApp l r) = TApp (inst fs l) (inst fs r)
 inst fs (TGen n) = fs !! n
 inst _ t = t
 
+retrieveConstraints (GConj gs) = Conj (map retrieveConstraints gs)
+retrieveConstraints (Group gr) = retrieveConstraints (GConj (map snd gr))
+retrieveConstraints (Proper a) = a
 
 dom' (a, TVar b) = if a == b then "" else a
 dom' (a,_) = a

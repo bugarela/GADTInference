@@ -51,7 +51,9 @@ conGen g (Let (i,e1) e2) = do a <- freshVar
 conGen g (LetA (i,(Constrained t cs),e1) e2) = do t1 <- freshInstance t
                                                   (t',g1) <- conGen (g /+/ [i:>:(Constrained t cs)]) e1
                                                   (v,g2) <- conGen (g /+/ [i:>:(Constrained t cs)]) e2
-                                                  let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) (tv t) E g1)] ++ [t1 ~~ t'])
+                                                  let f1 = retrieveConstraints g1
+                                                      f2 = retrieveConstraints g2
+                                                  let gr = GConj ([Proper f2] ++ [Proper (Impl (map makeTvar (tv g)) (tv t) E (Proper f1))] ++ [t1 ~~ t'])
                                                   return (v,gr)
 
 --CASE
