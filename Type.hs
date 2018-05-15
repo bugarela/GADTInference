@@ -247,8 +247,7 @@ quantifyAllC t cs = quantifyC (tv t) t cs
 
 quantifyAssump (i,t) = i:>:quantifyAll t
 
-skolemize :: [Id] -> SimpleType -> SimpleType
-skolemize as t = let s = map (\i -> (i,TSkolem i)) as in apply s t
+skolemize t = let s = map (\i -> (i,TSkolem i)) (gtv t) in apply s t
 
 countTypes (TArr l r) = max (countTypes l) (countTypes r)
 countTypes (TApp l r) = max (countTypes l) (countTypes r)

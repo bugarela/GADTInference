@@ -50,9 +50,7 @@ instance Solver GConstraint where
                              return (ss @@ s)
   solver (Group gr) = do vs <- mapM solveImpl gr
                          t <- lcg (map toType vs)
-                         let as = gtv (t)
-                             sk = skolemize as t
-                         --error (show vs)
+                         let sk = skolemize t
                          let u = unifyAll sk vs
                          return (unifyAll (apply u sk) (map fst gr))
 
