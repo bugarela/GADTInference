@@ -35,16 +35,14 @@ conGen g (Lam i e) = do a <- freshVar
                         return (a --> t , gr)
 
 --LET
-conGen g (Let (i,e1) e2) = do a <- freshVar
-                              (t,g1) <- conGen (g /+/ [i:>:(convert a)]) e1
-                              let gs = GConj ([g1] ++ [a ~~ t])
-                              s <- solver (simple gs)
+conGen g (Let (i,e1) e2) = do (t,g1) <- conGen g e1
+                              s <- solveAll g1
                               let t' = apply s t
                               let q = quantify (tv t' \\ tv (apply s g)) t'
                               (vs,q') <- (freshSubstC q)
                               let bs = tv vs
                               (v,g2) <- conGen (g /+/ [i:>:(convert (inst vs q'))]) e2
-                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) bs E (instC vs gs))])
+                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) bs E (instC vs g1))])
                               return (v,gr)
 
 --LETA

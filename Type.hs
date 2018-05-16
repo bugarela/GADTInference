@@ -148,7 +148,7 @@ instance Cons Constraint where
 
   clean (Conj cs) = Conj (clean' (Conj cs))
   clean (Simp c) = Simp (clean c)
-  clean c = c
+  clean (Impl as bs c f) = Impl as bs (clean c) (clean f)
 
   clean' (Conj []) = []
   clean' (Conj cs) = foldr1 (++) (map clean' cs)
@@ -171,14 +171,12 @@ instance Cons GConstraint where
 
   clean (GConj cs) = GConj (clean' (GConj cs))
   clean (Proper c) = Proper (clean c)
-  clean c = c
+  clean (Group gs) = Group (map (\(t,g) -> (t,clean g)) gs)
 
   clean' (GConj []) = []
   clean' (GConj cs) = foldr1 (++) (map clean' cs)
   clean' (Group gs) = [Group (map (\(t,g) -> (t,clean g)) gs)]
   clean' (Proper a) = if cls == Simp E then [] else [Proper cls] where cls = (clean a)
-
-
 
 ------------------------------------
 varBind :: Id -> SimpleType -> Maybe Subst

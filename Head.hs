@@ -65,13 +65,13 @@ instance Show SConstraint where
     show (SConj (c:cs)) = show c ++ "\n" ++ show (SConj cs)
 
 instance Show Constraint where
-    show (Simp c) = show c
+    show (Simp c) = showInLine c
     show (Impl as bs c g) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine'' g ++ ")"
     show (Conj [c]) = show c
     show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)
 
 instance Show GConstraint where
-    show (Proper f) = show f
+    show (Proper f) = showInLine' f
     show (Group [g]) = "-" ++ show g
     show (Group (g:gs)) = "-" ++ show g ++ "\n" ++ show (Group gs)
     show (GConj [c]) = show c
@@ -92,16 +92,31 @@ tup a = a !! 0 == '(' && a !! 1 == ','
 showTuple [x] = x ++ ")"
 showTuple (x:xs) = x ++ "," ++ showTuple xs
 
-showInLine (SConj [c]) = showInLine c
-showInLine (SConj (c:cs)) = showInLine c ++ " ^ " ++ showInLine (SConj cs)
+showInLine (SConj []) = ""
+showInLine (SConj (E:cs)) = showInLine (SConj (filter notEmpty cs))
+showInLine (SConj (c:cs)) = showInLine c ++ if rs /= SConj [] then " ^ " ++ showInLine rs else "" where rs = (SConj (filter notEmpty cs))
 showInLine c = show c
 
-showInLine' (Conj [c]) = showInLine' c
-showInLine' (Conj (c:cs)) = showInLine' c ++ " ^ " ++ showInLine' (Conj cs)
+showInLine' (Conj []) = ""
+showInLine' (Conj ((Simp E):cs)) = showInLine' (Conj (filter notEmpty' cs))
+showInLine' (Conj (c:cs)) = showInLine' c ++ if rs /= Conj [] then " ^ " ++ showInLine' rs else "" where rs = (Conj (filter notEmpty' cs))
 showInLine' (Simp c) = showInLine c
 showInLine' c = show c
 
-showInLine'' (GConj [c]) = showInLine'' c
-showInLine'' (GConj (c:cs)) = showInLine'' c ++ " ^ " ++ showInLine'' (GConj cs)
+showInLine'' (GConj []) = ""
+showInLine'' (GConj ((Proper (Simp E)):cs)) = showInLine'' (GConj (filter notEmpty'' cs))
+showInLine'' (GConj (c:cs)) = showInLine'' c ++ if rs /= GConj [] then " ^ " ++ showInLine'' rs else "" where rs = (GConj (filter notEmpty'' cs))
 showInLine'' (Proper c) = showInLine' c
 showInLine'' c = show c
+
+notEmpty E = False
+notEmpty (SConj cs) = (filter (notEmpty) cs) /= []
+notEmpty _ = True
+
+notEmpty' (Simp a) = notEmpty a
+notEmpty' (Conj cs) = (filter (notEmpty') cs) /= []
+notEmpty' _ = True
+
+notEmpty'' (Proper a) = notEmpty' a
+notEmpty'' (GConj cs) = (filter (notEmpty'') cs) /= []
+notEmpty'' _ = True
