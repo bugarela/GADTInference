@@ -52,7 +52,8 @@ instance Solver GConstraint where
                          t <- lcg (map toType vs)
                          let sk = skolemize t
                          let u = unifyAll sk vs
-                         return (unifyAll (apply u sk) (map fst gr))
+                         --error (show gr)
+                         return (unifyAll (apply u t) (map fst gr))
 
 solveImpl (t,(Proper (Impl _ _ c g)))  = do s <- solveAll (GConj [(Proper (Simp c)),g])
                                             return (apply s t)

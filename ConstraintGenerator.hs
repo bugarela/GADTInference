@@ -39,10 +39,9 @@ conGen g (Let (i,e1) e2) = do (t,g1) <- conGen g e1
                               s <- solveAll g1
                               let t' = apply s t
                               let q = quantify (tv t' \\ tv (apply s g)) t'
-                              (vs,q') <- (freshSubstC q)
-                              let bs = tv vs
-                              (v,g2) <- conGen (g /+/ [i:>:(convert (inst vs q'))]) e2
-                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) bs E (instC vs g1))])
+                              (v,g2) <- conGen (g /+/ [i:>:q]) e2
+                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) [] E (g1))])
+                              error (show t' ++ show q)
                               return (v,gr)
 
 --LETA
