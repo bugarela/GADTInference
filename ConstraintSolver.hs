@@ -46,8 +46,7 @@ solveGroups gr = do vs <- mapM solveImpl gr
                     t <- lcg (map toType vs)
                     let sk = skolemize t
                     let u = unifyAll sk vs
-                    --error (show vs)
-                    return (unifyAll (apply u t) (map fst gr))
+                    return (unifyAll (apply u sk) (map fst gr))
 
 solveImpl (t,(Impl _ _ c f))  = do s <- solveAll (Conj [(Simp c), f]) []
                                    return (apply s t)

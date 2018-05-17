@@ -98,6 +98,8 @@ instance Subs ConstrainedType where
   apply s (Constrained a t) = Constrained a (apply s t)
   tv (Constrained _ t) = tv t
 
+applyTup s (t,c) = (apply s t, apply s c)
+
 class Cons t where
   instC :: [SimpleType] -> t -> t
   simple :: t -> SConstraint

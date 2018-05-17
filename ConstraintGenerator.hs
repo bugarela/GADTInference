@@ -35,35 +35,36 @@ conGen g (Lam i e) = do a <- freshVar
                         return (a --> t , f, s)
 
 --LET
-conGen g (Let (i,e1) e2) = do a <- freshVar
-                              (t,f1,s1) <- conGen (g /+/ [i:>:(convert a)]) e1
-                              let fs = Conj ([f1] ++ [a ~~ t])
-                              ss <- solver (simple fs)
+conGen g (Let (i,e1) e2) = do (t,f1,s1) <- conGen g e1
+                              ss <- solver (simple (apply s1 f1))
                               let s = ss @@ s1
                                   t' = apply s t
                                   q = quantify (tv t' \\ tv (apply s g)) t'
-                              (v,f2,s2) <- conGen (g /+/ [i:>:q]) e2
-                              let fs = Conj ([f2] ++ [Impl (map makeTvar (tv g)) [] E (f1)])
+                              (vs,q') <- (freshSubstC q)
+                              let bs = tv vs
+                              (v,f2,s2) <- conGen (g /+/ [i:>:(convert (inst vs q'))]) e2
+                              let fs = Conj ([f2] ++ [Impl (map makeTvar (tv g)) [] E (apply s (instC vs f1))])
                                   s' = s2 @@ s
-                              return (apply s' v, fs, s')
+                              return (apply s' v, fs, s2)
 
 --LETA
 conGen g (LetA (i,(Constrained t cs),e1) e2) = do t1 <- freshInstance t
                                                   (t',f1,_) <- conGen (g /+/ [i:>:(Constrained t cs)]) e1
-                                                  (v,f2,_) <- conGen (g /+/ [i:>:(Constrained t cs)]) e2
+                                                  (v,f2,s2) <- conGen (g /+/ [i:>:(Constrained t cs)]) e2
                                                   let gr = Conj ([f2] ++ [(Impl (map makeTvar (tv g)) (tv t) E f1)] ++ [t1 ~~ t'])
-                                                  return (v,gr,[])
+                                                  return (v,gr,s2)
 
 --CASE
-conGen g (Case e ls) = do (te,fe,_) <- conGen g e
+conGen g (Case e ls) = do (te,fe,se) <- conGen g e
                           a <- freshVar
                           ps <- mapM (conGenAlt g a te) ls
                           let gs = map fst ps
                           let fs = map snd gs
                           let cs = map snd ps
-                          s <- solveGroups gs
+                          ss <- solver (simple (Conj (cs ++ fs)))
+                          s <- solveGroups (map (applyTup ss) gs)
                           let f = Conj ([fe] ++ fs ++ cs)
-                          return (a,f,s)
+                          return (a,f,s @@ ss @@ se)
 
 conGenAlt g a te (p,e) = do (t, fi) <- conGenPat g a p e
                             let ti = leftArr t
