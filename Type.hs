@@ -34,11 +34,9 @@ infixr 4 @@
 s1 @@ s2    = [ (u, apply s1 t) | (u,t) <- s2 ] ++ s1
 
 infixr 5 ~~
-(~~) :: SimpleType -> SimpleType -> GConstraint
-t1 ~~ t2 = Proper (Simp (TEq t1 t2))
+(~~) :: SimpleType -> SimpleType -> Constraint
+t1 ~~ t2 = Simp (TEq t1 t2)
 
-properImpl :: [SimpleType] -> [Id] -> SConstraint -> Constraint -> GConstraint
-properImpl as bs c f = Proper (Impl as bs c (Proper f))
 ----------------------------
 class Subs t where
   apply :: Subst -> t -> t
@@ -96,13 +94,6 @@ instance Subs Constraint where
 
   tv _ = []
 
-instance Subs GConstraint where
-  apply s (Proper c) = Proper (apply s c)
-  apply s (Group gs) = Group (map (\(a,b) -> (apply s a, apply s b)) gs)
-  apply s (GConj cs) = GConj (map (apply s) cs)
-
-  tv _ = []
-
 instance Subs ConstrainedType where
   apply s (Constrained a t) = Constrained a (apply s t)
   tv (Constrained _ t) = tv t
@@ -110,7 +101,6 @@ instance Subs ConstrainedType where
 class Cons t where
   instC :: [SimpleType] -> t -> t
   simple :: t -> SConstraint
-  groups :: t -> GConstraint
   clean :: t -> t
   clean' :: t -> [t]
 
@@ -121,8 +111,6 @@ instance Cons SConstraint where
   instC fs (SConj cs) = (SConj (map (instC fs) cs))
 
   simple a = a
-
-  groups _ = Proper (Simp E)
 
   clean c = if cls == [] then E else SConj cls where cls = (clean' c)
 
@@ -144,8 +132,6 @@ instance Cons Constraint where
   simple (Impl as bs c g) = if (clean c == E) then Unt as bs (simple g) else E
   simple _ = E
 
-  groups _ = Proper (Simp E) -- change for nested cases (maybe)
-
   clean (Conj cs) = Conj (clean' (Conj cs))
   clean (Simp c) = Simp (clean c)
   clean (Impl as bs c f) = Impl as bs (clean c) (clean f)
@@ -154,29 +140,6 @@ instance Cons Constraint where
   clean' (Conj cs) = foldr1 (++) (map clean' cs)
   clean' (Impl as bs c f) = [Impl as bs (clean c) (clean f)]
   clean' (Simp a) = if cls == E then [] else [Simp cls] where cls = (clean a)
-
-instance Cons GConstraint where
-  instC fs (Proper f) = (Proper (instC fs f))
-  instC fs (Group ts) = (Group (map (\(t,g) -> (inst fs t, instC fs g)) ts))
-  instC fs (GConj gs) = (GConj (map (instC fs) gs))
-
-  simple (Proper f) = simple f
-  simple (GConj [c]) = simple c
-  simple (GConj (c:cs)) = SConj ([simple c] ++ [simple (GConj cs)])
-  simple (Group gs) = simple (GConj (map snd gs)) -- maybe this shoul be E
-
-  groups (Group a) = (Group a)
-  groups (GConj gs) = GConj (map groups gs)
-  groups (Proper _) = Proper (Simp E)
-
-  clean (GConj cs) = GConj (clean' (GConj cs))
-  clean (Proper c) = Proper (clean c)
-  clean (Group gs) = Group (map (\(t,g) -> (t,clean g)) gs)
-
-  clean' (GConj []) = []
-  clean' (GConj cs) = foldr1 (++) (map clean' cs)
-  clean' (Group gs) = [Group (map (\(t,g) -> (t,clean g)) gs)]
-  clean' (Proper a) = if cls == Simp E then [] else [Proper cls] where cls = (clean a)
 
 ------------------------------------
 varBind :: Id -> SimpleType -> Maybe Subst
@@ -278,9 +241,8 @@ inst fs (TApp l r) = TApp (inst fs l) (inst fs r)
 inst fs (TGen n) = fs !! n
 inst _ t = t
 
-retrieveConstraints (GConj gs) = Conj (map retrieveConstraints gs)
-retrieveConstraints (Group gr) = retrieveConstraints (GConj (map snd gr))
-retrieveConstraints (Proper a) = a
+cleanConstraints :: (SimpleType, Constraint, Subst) -> (SimpleType, Constraint, Subst)
+cleanConstraints (t,c,s) = (t,clean c,s)
 
 dom' (a, TVar b) = if a == b then "" else a
 dom' (a,_) = a

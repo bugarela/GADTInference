@@ -38,14 +38,9 @@ data SConstraint = TEq SimpleType SimpleType
                  deriving Eq
 
 data Constraint = Simp SConstraint
-                | Impl [SimpleType] [Id] SConstraint GConstraint
+                | Impl [SimpleType] [Id] SConstraint Constraint
                 | Conj [Constraint]
                 deriving Eq
-
-data GConstraint = Proper Constraint
-                 | Group [(SimpleType,GConstraint)]
-                 | GConj [GConstraint]
-                 deriving Eq
 
 instance Show SimpleType where
     show (TVar i) = i
@@ -66,16 +61,9 @@ instance Show SConstraint where
 
 instance Show Constraint where
     show (Simp c) = showInLine c
-    show (Impl as bs c g) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine'' g ++ ")"
+    show (Impl as bs c f) = show as ++ "(Forall " ++ show bs ++ "." ++ showInLine c ++ " imp " ++ showInLine' f ++ ")"
     show (Conj [c]) = show c
     show (Conj (c:cs)) = show c ++ "\n" ++ show (Conj cs)
-
-instance Show GConstraint where
-    show (Proper f) = showInLine' f
-    show (Group [g]) = "-" ++ show g
-    show (Group (g:gs)) = "-" ++ show g ++ "\n" ++ show (Group gs)
-    show (GConj [c]) = show c
-    show (GConj (c:cs)) = show c ++ "\n" ++ show (GConj cs)
 
 showApp [] = ""
 showApp [x] = x
@@ -103,12 +91,6 @@ showInLine' (Conj (c:cs)) = showInLine' c ++ if rs /= Conj [] then " ^ " ++ show
 showInLine' (Simp c) = showInLine c
 showInLine' c = show c
 
-showInLine'' (GConj []) = ""
-showInLine'' (GConj ((Proper (Simp E)):cs)) = showInLine'' (GConj (filter notEmpty'' cs))
-showInLine'' (GConj (c:cs)) = showInLine'' c ++ if rs /= GConj [] then " ^ " ++ showInLine'' rs else "" where rs = (GConj (filter notEmpty'' cs))
-showInLine'' (Proper c) = showInLine' c
-showInLine'' c = show c
-
 notEmpty E = False
 notEmpty (SConj cs) = (filter (notEmpty) cs) /= []
 notEmpty _ = True
@@ -116,7 +98,3 @@ notEmpty _ = True
 notEmpty' (Simp a) = notEmpty a
 notEmpty' (Conj cs) = (filter (notEmpty') cs) /= []
 notEmpty' _ = True
-
-notEmpty'' (Proper a) = notEmpty' a
-notEmpty'' (GConj cs) = (filter (notEmpty'') cs) /= []
-notEmpty'' _ = True

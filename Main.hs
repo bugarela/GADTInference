@@ -6,11 +6,11 @@ import ConstraintSolver
 
 solve' g e = runTI (generateAndSolve (context /+/ g) e)
 
-generate' g e = clean (snd (runTI (conGen (context /+/ g) e)))
+generate' g e = cleanConstraints (runTI (conGen (context /+/ g) e))
 
-generateAndSolve g e = do (t,cs) <- conGen g e
-                          u <- solveAll (clean cs)
-                          return (apply u t)
+generateAndSolve g e = do (t,cs,s) <- conGen g e
+                          u <- solveAll (clean cs) s
+                          return (apply (u @@ s) t)
 
 solve a = do as <- parseFile a
              inferFile' solve' as

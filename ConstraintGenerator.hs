@@ -6,61 +6,64 @@ import ConstraintSolver
 import Data.List
 import Lcg
 
-conGen :: ([Assump]) -> Expr -> TI (SimpleType,GConstraint)
+conGen :: ([Assump]) -> Expr -> TI (SimpleType, Constraint, Subst)
 
 --VAR
 conGen g (Var x) = do (t,c) <- tiContext g x
-                      return (t, Proper (Simp c))
+                      return (t, Simp c, [])
 
 --CON
 conGen g (Con i) = do (t,c) <- tiContext g i
-                      return (t, Proper (Simp c))
+                      return (t, Simp c, [])
 
 -- IF
-conGen g (If x t e) = do (tx,gx) <- conGen g x
-                         (tt,gt) <- conGen g t
-                         (te,ge) <- conGen g e
-                         return (te, (GConj ([tx ~~ (TCon "Bool")] ++ [tt ~~ te] ++ [gx] ++ [gt] ++ [ge])))
+conGen g (If x t e) = do (tx,gx,sx) <- conGen g x
+                         (tt,gt,st) <- conGen g t
+                         (te,ge,se) <- conGen g e
+                         return (te, (Conj ([tx ~~ (TCon "Bool")] ++ [tt ~~ te] ++ [gx] ++ [gt] ++ [ge])), se @@ st @@ sx)
 
 --APP
-conGen g (App e1 e2) = do (t1,g1) <- conGen g e1
-                          (t2,g2) <- conGen g e2
+conGen g (App e1 e2) = do (t1,f1,s1) <- conGen g e1
+                          (t2,f2,s2) <- conGen g e2
                           a <- freshVar
-                          let gr = GConj ([g1] ++ [g2] ++ [(t1 ~~ (t2 --> a))])
-                          return (a, gr)
+                          let f = Conj ([f1] ++ [f2] ++ [(t1 ~~ (t2 --> a))])
+                          return (a, f, s2 @@ s1)
 
 --ABS
 conGen g (Lam i e) = do a <- freshVar
-                        (t,gr) <- conGen (g /+/ [i:>:(convert a)]) e
-                        return (a --> t , gr)
+                        (t,f,s) <- conGen (g /+/ [i:>:(convert a)]) e
+                        return (a --> t , f, s)
 
 --LET
-conGen g (Let (i,e1) e2) = do (t,g1) <- conGen g e1
-                              s <- solveAll g1
-                              let t' = apply s t
-                              let q = quantify (tv t' \\ tv (apply s g)) t'
-                              (v,g2) <- conGen (g /+/ [i:>:q]) e2
-                              let gr = GConj ([g2] ++ [Proper (Impl (map makeTvar (tv g)) [] E (g1))])
-                              error (show t' ++ show q)
-                              return (v,gr)
+conGen g (Let (i,e1) e2) = do a <- freshVar
+                              (t,f1,s1) <- conGen (g /+/ [i:>:(convert a)]) e1
+                              let fs = Conj ([f1] ++ [a ~~ t])
+                              ss <- solver (simple fs)
+                              let s = ss @@ s1
+                                  t' = apply s t
+                                  q = quantify (tv t' \\ tv (apply s g)) t'
+                              (v,f2,s2) <- conGen (g /+/ [i:>:q]) e2
+                              let fs = Conj ([f2] ++ [Impl (map makeTvar (tv g)) [] E (f1)])
+                                  s' = s2 @@ s
+                              return (apply s' v, fs, s')
 
 --LETA
 conGen g (LetA (i,(Constrained t cs),e1) e2) = do t1 <- freshInstance t
-                                                  (t',g1) <- conGen (g /+/ [i:>:(Constrained t cs)]) e1
-                                                  (v,g2) <- conGen (g /+/ [i:>:(Constrained t cs)]) e2
-                                                  let f1 = retrieveConstraints g1
-                                                      f2 = retrieveConstraints g2
-                                                  let gr = GConj ([Proper f2] ++ [Proper (Impl (map makeTvar (tv g)) (tv t) E (Proper f1))] ++ [t1 ~~ t'])
-                                                  return (v,gr)
+                                                  (t',f1,_) <- conGen (g /+/ [i:>:(Constrained t cs)]) e1
+                                                  (v,f2,_) <- conGen (g /+/ [i:>:(Constrained t cs)]) e2
+                                                  let gr = Conj ([f2] ++ [(Impl (map makeTvar (tv g)) (tv t) E f1)] ++ [t1 ~~ t'])
+                                                  return (v,gr,[])
 
 --CASE
-conGen g (Case e ls) = do (te,ge) <- conGen g e
+conGen g (Case e ls) = do (te,fe,_) <- conGen g e
                           a <- freshVar
-                          fs <- mapM (conGenAlt g a te) ls
-                          let gs = map fst fs
-                          let cs = map snd fs
-                          let gr = GConj ([ge] ++ [Group gs] ++ cs)
-                          return (a,gr)
+                          ps <- mapM (conGenAlt g a te) ls
+                          let gs = map fst ps
+                          let fs = map snd gs
+                          let cs = map snd ps
+                          s <- solveGroups gs
+                          let f = Conj ([fe] ++ fs ++ cs)
+                          return (a,f,s)
 
 conGenAlt g a te (p,e) = do (t, fi) <- conGenPat g a p e
                             let ti = leftArr t
@@ -92,12 +95,12 @@ conGenPat g a (PCon i xs) e = do (t,c) <- tiContext g i
                                  let ta = foldr1 TArr (ts ++ [b])
                                  let u = unify t ta
                                  let g' = apply u gp
-                                 (te,ge) <- conGen g' e
+                                 (te,fe,_) <- conGen g' e
                                  let bs = findBs ta (map idOf (as ++ [b]))
                                  let as' = intersect as (map makeTvar (tv (rightArr t)))
-                                 let f = Proper (Impl ([a] ++ as' ++ map makeTvar (tv g ++ tv te)) bs (SConj ([c] ++ cs)) (GConj ([(te ~~ a)] ++ [ge])))
-                                 let f' = GConj ([apply u f] ++ [ge])
+                                 let f = Impl ([a] ++ as' ++ map makeTvar (tv g ++ tv te)) bs (SConj ([c] ++ cs)) (Conj ([(te ~~ a)] ++ [fe]))
+                                 let f' = Conj ([apply u f] ++ [fe])
                                  return ((apply u b) --> te, f')
 
 conGenPat g a p _ = do (t,c,_,b) <- conGenPat' g p
-                       return (t,Proper (Simp c))
+                       return (t,(Simp c))
