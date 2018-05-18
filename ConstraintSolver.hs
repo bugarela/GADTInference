@@ -8,6 +8,7 @@ import Lcg
 
 solveAll fs s = do ss <- solver (simple fs)
                    let s' = ss @@ s
+                   --error (show s' ++ show fs)
                    sa <- solver (apply s' fs)
                    return (sa @@ s')
 
@@ -46,9 +47,10 @@ solveGroups gr = do vs <- mapM solveImpl gr
                     t <- lcg (map toType vs)
                     let sk = skolemize t
                     let u = unifyAll sk vs
+                    --error(show t ++ show gr ++ show (unifyAll (apply u t) (map fst gr)))
                     return (unifyAll (apply u sk) (map fst gr))
 
-solveImpl (t,(Impl _ _ c f))  = do s <- solveAll (Conj [(Simp c), f]) []
+solveImpl (t,(Impl _ _ c f))  = do s <- solver (SConj [c, simple f])
                                    return (apply s t)
 solveImpl (t,(Simp (Unt _ _ c)))  = do s <- solver c
                                        return (apply s t)

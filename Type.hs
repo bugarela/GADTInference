@@ -170,7 +170,7 @@ unify t t' =  case mgu (t,t') of
     Just s  -> s
 
 unifyAll v [] = []
-unifyAll v (t:ts) = (unifyAll (apply s v) ts) @@ s where s = unify v t
+unifyAll v (t:ts) = (unifyAll (apply s v) ts) @@ s where s = unify t v
 
 tiContext :: [Assump] -> Id -> TI (SimpleType, SConstraint)
 -- n-tuple on context
