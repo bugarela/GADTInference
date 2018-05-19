@@ -170,7 +170,7 @@ unify t t' =  case mgu (t,t') of
     Just s  -> s
 
 unifyAll v [] = []
-unifyAll v (t:ts) = (unifyAll (apply s v) ts) @@ s where s = unify t v
+unifyAll v (t:ts) = (unifyAll (apply s v) ts) @@ s where s = unify v t
 
 tiContext :: [Assump] -> Id -> TI (SimpleType, SConstraint)
 -- n-tuple on context
@@ -187,6 +187,15 @@ tiContext g i = if l /= [] then (freshInst t c) else error ("Variable " ++ i ++ 
         l = dropWhile (\(i' :>: _) -> i /= i' ) g
         (_ :>: Constrained t c) = head l
 
+
+buildGroup a (TArr t v, as, bs, d, f, s) = (s, t --> a, Conj [f, Simp d, a ~~ v])
+buildConstraint a te (TArr t v, as, bs, d, f, s) = Conj [f, te ~~ t, Impl ([a] ++ as) bs d (a ~~ v)]
+getSubs g = foldr1 (@@) (map (\(_,_,_,_,_,s) -> s) g)
+
+toLists ls = let ss = (map (\(s,_,_) -> s)) ls
+                 ts = (map (\(_,t,_) -> t)) ls
+                 fs = (map (\(_,_,f) -> f)) ls
+             in (ss,ts,fs)
 
 check _ (Nothing) = False
 check us (Just []) = True

@@ -6,11 +6,9 @@ import Parser
 import Data.List
 import Lcg
 
-solveAll fs s = do ss <- solver (simple fs)
-                   let s' = ss @@ s
-                   --error (show s' ++ show fs)
-                   sa <- solver (apply s' fs)
-                   return (sa @@ s')
+solveAll fs = do s <- solver (simple fs)
+                 sa <- solver (apply s fs)
+                 return (sa @@ s)
 
 class Solver t where
   solver :: t -> TI Subst
@@ -38,17 +36,22 @@ instance Solver Constraint where
                                then error ("S-SImpl error with bs=" ++ show bs)
                                else return s
   solver (Impl as bs c g) = do p <- solver c
-                               t <- solveAll (apply p g) []
+                               t <- solveAll (apply p g)
                                if (intersect as (map makeTvar (dom t)) /= [])
                                then error ("S-PImpl on :" ++ show (Impl as bs c g) ++ "with as= " ++ show as ++ " teta= " ++ show t)
                                else return t
 
-solveGroups gr = do vs <- mapM solveImpl gr
+solveGroups gr = do vs <- mapM solveAndApply gr
+                    let ts = map (\(_,t,_) -> t) gr
                     t <- lcg (map toType vs)
                     let sk = skolemize t
                     let u = unifyAll sk vs
-                    --error(show t ++ show gr ++ show (unifyAll (apply u t) (map fst gr)))
-                    return (unifyAll (apply u sk) (map fst gr))
+                    --error (show gr)
+                    --error (show sk ++ show vs ++ show (apply u t) ++ show ts)
+                    return (unifyAll (apply u t) ts)
+
+solveAndApply (s,t,f) = do s' <- solver (simple f)
+                           return (apply (s' @@ s) t)
 
 solveImpl (t,(Impl _ _ c f))  = do s <- solver (SConj [c, simple f])
                                    return (apply s t)
