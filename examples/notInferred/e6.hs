@@ -1,4 +1,4 @@
-data T a where {T1 :: (a ~ Int) => a -> T a; T3 :: (a ~ Bool) => a -> T a}
-e = \z -> case z of {(T1 n, y, f) -> f n; (T3 b, y, f) -> f y}
+data T a where {TInt :: (a ~ Int) => a -> T a; TBool :: (a ~ Bool) => a -> T a}
+e = \z -> case z of {(TInt n, y, f) -> f n; (TBool b, y, f) -> f y}
 -- ghc does not infer
 -- see annotated/e6.hs

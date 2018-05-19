@@ -1,3 +1,3 @@
-data T a where {T1 :: (a ~ Int) => a -> T a; T2 :: a -> T a; T3 :: (a ~ Bool) => a -> T a}
-e = let f = (\x -> case x of {T1 n -> n; T3 b -> b}) in f
+data T a where {TInt :: (a ~ Int) => a -> T a; TBool :: (a ~ Bool) => a -> T a; TAny :: a -> T a}
+e = let f = (\x -> case x of {TInt n -> n; TBool b -> b}) in f
 -- ghc does not infer
