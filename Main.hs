@@ -9,7 +9,7 @@ solve' g e = runTI (generateAndSolve (context /+/ g) e)
 generate' g e = cleanConstraints (runTI (conGen (context /+/ g) e))
 
 generateAndSolve g e = do (t,cs,s) <- conGen g e
-                          u <- solveAll (clean cs)
+                          u <- solveAll (clean (apply s cs))
                           --error (show s ++ show u ++ show t ++ show cs)
                           return (apply (u @@ s) t)
 
