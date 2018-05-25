@@ -10,7 +10,7 @@ generate' g e = cleanConstraints (runTI (conGen (context /+/ g) e))
 
 generateAndSolve g e = do (t,cs,s) <- conGen g e
                           u <- solveAll (clean (apply s cs))
-                          return (apply u t)
+                          return (apply (u @@ s) t)
 
 solve a = do as <- parseFile a
              inferFile' solve' as
