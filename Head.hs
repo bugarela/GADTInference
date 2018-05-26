@@ -15,6 +15,7 @@ data SimpleType  = TVar Id
                  | TGen Int
                  | TSkolem Id
                  | TGADT Id
+                 | TRigid Id
                  deriving Eq
 
 data Expr = Var Id
@@ -49,7 +50,8 @@ instance Show SimpleType where
     show (TCon i) = i
     show (TApp c v) = showApp (listApp c v)
     show (TGen n) = "tg" ++ show n
-    show (TSkolem i) = "skolem" ++ show i
+    show (TSkolem i) = "skoem" ++ show i
+    show (TRigid i) = "rigid" ++ show i
     show (TGADT i) = "GADT " ++ i
 
 instance Show SConstraint where

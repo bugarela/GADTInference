@@ -45,7 +45,8 @@ solveGroups gr = do vs <- mapM solveAndApply gr
                     let ts = map (\(_,t,_) -> t) gr
                     t <- lcg (map toType vs)
                     let sk = skolemize t
-                    let u = unifyAll sk vs
+                        rs = map toRigid vs
+                        u = unifyAll sk rs
                     return (unifyAll (apply u t) ts)
 
 solveAndApply (s,t,f) = do s' <- solver (simple f)

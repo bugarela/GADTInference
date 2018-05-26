@@ -56,6 +56,7 @@ instance Subs SimpleType where
   apply s (TApp c v) =  TApp (apply s c) (apply s v)
   apply _ (TGen n) = TGen n
   apply _ (TSkolem n) = TSkolem n
+  apply _ (TRigid n) = TRigid n
 
   apply s (TGADT u)  =
                     case lookup u s of
@@ -148,6 +149,7 @@ varBind :: Id -> SimpleType -> Maybe Subst
 varBind u t | t == TVar u   = Just []
             | t == TCon u   = Just []
             | t == TGADT u  = Just []
+            | t == TRigid u  = Just []
             | u `elem` tv t = Nothing
             | otherwise     = Just [(u, t)]
 
@@ -159,6 +161,8 @@ mgu (TArr l r,  TArr l' r') = do s1 <- mgu (l,l')
 mgu (TApp c v, TApp c' v')  = do s1 <- mgu (c,c')
                                  s2 <- mgu ((apply s1 v) ,  (apply s1 v'))
                                  return (s2 @@ s1)
+mgu (TRigid u, TRigid t )   =  if u==t then Just [] else Nothing
+mgu (TRigid t, u        )   =  mgu (u,TRigid t)
 mgu (TVar u,   t        )   =  varBind u t
 mgu (t,        TVar u   )   =  varBind u t
 mgu (TGADT u,  TCon t   )   =  if u==t then Just [] else Nothing
@@ -220,6 +224,8 @@ quantifyAllC t cs = quantifyC (tv t) t cs
 quantifyAssump (i,t) = i:>:quantifyAll t
 
 skolemize t = let s = map (\i -> (i,TSkolem i)) (gtv t) in apply s t
+
+toRigid t = let s = map (\i -> (i,TRigid i)) (gtv t) in apply s t
 
 countTypes (TArr l r) = max (countTypes l) (countTypes r)
 countTypes (TApp l r) = max (countTypes l) (countTypes r)
